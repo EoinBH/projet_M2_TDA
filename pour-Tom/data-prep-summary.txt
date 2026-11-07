@@ -1,0 +1,128 @@
+TEMPORAL PROJECT – DATA PREPARATION SUMMARY
+
+1. PROJECT OBJECTIVE
+
+The project aims to forecast French metropolitan electricity consumption for all 24 hours of day J+1, using information available at 14:00 on day J.
+
+The first stage consists of constructing a clean, reproducible hourly dataset covering 2022–2025, combining:
+
+- RTE: electricity consumption, production and cross-border exchanges.
+- Météo-France: SYNOP meteorological observations.
+- Calendar data: public holidays, school holidays and temporal characteristics.
+
+The dataset will support exploratory analysis, time-series analysis and forecasting model development.
+
+A central methodological requirement is to prevent information leakage: predictors must only use information genuinely available at the forecast origin.
+
+2. DATA AND METHODOLOGICAL DECISIONS
+
+**Electricity data – RTE**
+- Four annual definitive datasets (2022–2025) were selected.
+- The definitive data were preferred to provisional observations for consistency and reliability.
+- Original 15-minute power observations are aggregated into hourly averages. Power (MW) must be averaged, not summed.
+- Consumption, production by energy source, exchanges and CO2 intensity are retained where available.
+
+**Weather data – Météo-France SYNOP**
+- SYNOP was selected as the meteorological source because it provides observed weather measurements from a network of stations.
+- A national spatial approach was chosen: observations from metropolitan French stations are aggregated into national indicators.
+- Original three-hourly observations are preserved, alongside hourly interpolated variables.
+- Circular averaging is used for wind direction because directions are angular measurements.
+- Interpolated weather observations are identified so that observed and estimated values remain distinguishable.
+
+Important forecasting distinction: observed SYNOP weather for J+1 is not available at 14:00 on J. It can support retrospective analysis or a perfect-weather benchmark, but an operational model needs archived weather forecasts available at the prediction origin.
+
+**Calendar data**
+- Public holidays are imported from JSON and school holidays from ICS.
+- School holiday zones A, B and C are retained separately because France does not have a single uniform school holiday calendar.
+- Weekends, weekdays, seasons, holiday eves and cyclical time features are generated.
+- Calendar information is known in advance and is therefore suitable for operational forecasting.
+
+**Timestamp convention**
+- UTC is the common reference for merging datasets.
+- RTE observations are interpreted in Europe/Paris local time.
+- SYNOP timestamps are interpreted in UTC.
+- Calendar features are calculated using French local time.
+- Both UTC and local timestamps are retained to handle daylight-saving transitions correctly, including the missing spring hour and repeated autumn hour.
+
+3. PROJECT STRUCTURE AND PIPELINE
+
+The project is organised into raw data, processed data and R scripts. Raw files remain unchanged.
+
+Five scripts automate the preparation:
+
+- `00_run_pipeline.R`: installs dependencies, loads packages, creates directories and runs the pipeline.
+- `01_prepare_RTE.R`: imports, cleans and aggregates RTE electricity data.
+- `02_prepare_weather.R`: imports, filters, aggregates and interpolates SYNOP data.
+- `03_prepare_calendar.R`: constructs public holiday, school holiday and temporal variables.
+- `04_merge_datasets.R`: merges the datasets using UTC, reconstructs local timestamps and generates diagnostics.
+
+4. FINAL DATASET
+
+Main output: `data/processed/modelling_dataset.csv`
+
+It contains:
+
+- Electricity: consumption, forecasts, production by source, exchanges, CO2 intensity and other available indicators.
+- Weather: temperature, dew point, humidity, wind, visibility, pressure and precipitation.
+- Calendar: date, hour, weekday, weekend, public holidays, school holidays, zones and season.
+- Cyclical features: sine and cosine transformations of hour, weekday and month.
+
+Intermediate outputs include `rte_hourly.csv`, `weather_3hourly.csv`, `weather_hourly.csv` and `calendar_hourly.csv`.
+
+5. DATA QUALITY RESULTS
+
+The first complete pipeline execution produced:
+
+- 35,064 unique hourly observations.
+- First timestamp: 2021-12-31 23:00 UTC.
+- Last timestamp: 2025-12-31 22:00 UTC.
+- Missing electricity consumption: 4 observations (approximately 0.011%).
+- Missing temperature: 62 observations (approximately 0.177%).
+- Missing calendar observations: 0.
+
+Other findings:
+- Short-period temperature extrema (`tn12`, `tx12`) have approximately 91.5% missingness.
+- Solar radiation (`sw`) is entirely missing.
+- The station-count variable is missing for approximately 66.7% of hours because SYNOP observations are three-hourly and this variable is not interpolated.
+- Public holiday names are missing on most dates, as expected.
+
+Variables with substantial or complete missingness should be investigated before modelling.
+
+6. REMAINING VALIDATION
+
+Before beginning statistical modelling:
+
+1. Verify RTE repeated-hour ordering during the autumn clock change.
+2. Validate school holiday extraction for zones A, B and C, including Corsica where applicable.
+3. Confirm SYNOP measurement units and missing-value codes against the technical documentation.
+4. Investigate the four missing RTE consumption observations.
+5. Investigate the 62 missing temperature observations.
+6. Understand why solar radiation is entirely missing.
+7. Review variables with substantial missingness and decide whether to retain, transform or exclude them.
+8. Check station coverage and the stability of national weather averages.
+9. Validate timestamp continuity, duplicates and the treatment of daylight-saving transitions.
+
+7. IMPORTANT NEXT METHODOLOGICAL STEP
+
+The dataset is technically assembled, but it is not yet automatically suitable for operational forecasting.
+
+The original prediction scenario must guide feature selection:
+
+- Forecast origin: 14:00 on day J.
+- Prediction horizon: all 24 hours of day J+1.
+- Historical consumption values must respect their actual availability at 14:00 on J.
+- Future observed weather must not be used as an operational predictor.
+- Calendar variables are safe because they are known in advance.
+- Validation must be chronological, not based on random train/test splitting.
+
+The distinction between operational forecasting and retrospective perfect-weather modelling must be maintained.
+
+8. REPRODUCIBILITY AND CURRENT STATUS
+
+The complete preparation pipeline is automated and can be executed from the project root using:
+
+`source("R/00_run_pipeline.R")`
+
+The pipeline imports the raw data, prepares each source, merges the datasets and generates diagnostic files.
+
+**Status:** Initial data preparation and merging are complete. The project is now at the data validation and feature-selection stage, before exploratory analysis and forecasting model development.

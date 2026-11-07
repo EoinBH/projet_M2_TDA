@@ -32,7 +32,9 @@ packages <- c(
   "jsonlite",
   "stringi",
   "zoo",
-  "clock"
+  "clock",
+  "forecast",
+  "tseries"
 )
 
 missing_packages <- packages[
@@ -75,11 +77,25 @@ dir.create(
 # 4. Execute scripts in order
 # ------------------------------------------------------------
 
-scripts <- c(
-  "01_prepare_rte.R",
+# Set a flag to FALSE to skip a stage (e.g. RUN_DATA <- FALSE reuses data/processed/).
+RUN_DATA   <- FALSE   # steps 01-04: data cleaning and merging
+RUN_MODELS <- TRUE   # steps 06-07: benchmarks and ARIMA (07 is slow)
+
+data_scripts <- c(
+  "01_prepare_RTE.R",
   "02_prepare_weather.R",
   "03_prepare_calendar.R",
   "04_merge_datasets.R"
+)
+
+model_scripts <- c(
+  "06_benchmarks.R",
+  "07_arima.R"
+)
+
+scripts <- c(
+  if (RUN_DATA) data_scripts,
+  if (RUN_MODELS) model_scripts
 )
 
 for (script in scripts) {
@@ -112,7 +128,7 @@ for (script in scripts) {
 # ------------------------------------------------------------
 
 message("\n========================================")
-message("DATA PREPARATION SUCCESSFULLY COMPLETED")
+message("PIPELINE SUCCESSFULLY COMPLETED")
 message("========================================")
 
 message(

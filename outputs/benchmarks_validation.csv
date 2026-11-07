@@ -1,0 +1,4 @@
+"","MAE","RMSE","MAE_daily_tot","MAE_peak_value","MAE_peak_hour"
+"B1_prev_day_strict",3182.95,4362.15,72276.11,3278.6,2.39
+"B2_same_weekday_lw",3229.41,4845.73,74799.72,3394.52,2.05
+"B3_mean_4_weeks",3706.47,5354.37,86534.61,3804.81,1.91
