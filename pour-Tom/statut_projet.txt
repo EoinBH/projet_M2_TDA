@@ -1,0 +1,89 @@
+PROJET DONNÉES TEMPORELLES - POINT D'AVANCEMENT
+Prévision de la consommation électrique horaire en France métropolitaine
+(état au 7 novembre 2026)
+
+1. OBJECTIF
+À 14 h le jour J, prévoir la consommation des 24 heures du jour J+1. Aucune
+information postérieure à 14 h le jour J ne doit être utilisée (pas de fuite
+d'information). La météo observée de J+1 n'est utilisable que dans un
+scénario "météo parfaite", présenté comme une borne de performance et jamais
+comme un modèle déployable.
+
+2. CE QUI EST FAIT
+- Préparation des données (scripts R/01 à R/04) : RTE éCO2mix 2022-2025,
+  météo SYNOP (agrégation nationale) et variables calendaires (jours fériés,
+  vacances zones A/B/C). Fichier final : data/processed/modelling_dataset.csv
+  (35 064 heures). Tout est fusionné en UTC, avec heure locale conservée pour
+  les changements d'heure.
+- Protocole (R/05_protocol.R) : matrice jours x 24 heures, règle de
+  disponibilité à 14 h (jours précédents + heures 0 à 13 du jour J),
+  découpage chronologique : apprentissage 2022-2023, validation 2024,
+  test 2025 (à n'utiliser qu'une seule fois). Métriques : MAE, RMSE, erreur
+  sur le total journalier, sur la valeur et sur l'heure de la pointe.
+- Références simples (R/06_benchmarks.R) :
+  B1 jour précédent "strict" (jour J pour les heures 0-13, jour J-1 pour
+  les heures 14-23, car la fin du jour J est inconnue à 14 h),
+  B2 même jour de la semaine précédente, B3 moyenne des 4 mêmes jours.
+- Modèle ARIMA (R/07_arima.R) : un ARIMA saisonnier (période 7) par heure
+  de la journée, avec régresseurs calendaires (férié, veille de férié,
+  vacances A/B/C, termes de Fourier annuels). Ordres choisis sur
+  l'apprentissage uniquement, ré-estimation tous les 28 jours.
+- Script maître R/00_run_pipeline.R : lance tout (données puis modèles),
+  avec des interrupteurs RUN_DATA et RUN_MODELS. README.md rédigé.
+
+3. RÉSULTATS SUR LA VALIDATION (2024, en MW)
+Modèle                  MAE     RMSE    Err. total jour  Err. pointe  Err. heure pointe
+ARIMA par heure        1643     2421        32 529          1568        2,4 h
+B1 jour précédent      3183     4362        72 276          3279        2,4 h
+B2 semaine précédente  3229     4846        74 800          3395        2,1 h
+B3 moyenne 4 semaines  3706     5354        86 535          3805        1,9 h
+
+L'ARIMA réduit la MAE d'environ moitié par rapport au meilleur benchmark.
+Les valeurs sont plausibles et cohérentes entre les fichiers de sortie.
+Remarque : l'heure de la pointe n'est pas mieux prévue par l'ARIMA.
+
+4. PROBLÈMES / POINTS D'ATTENTION
+- L'exécution de 06 + 07 dure environ 45 minutes (surtout l'ARIMA par heure).
+  Une évaluation sur le test 2025 prendra un temps du même ordre.
+- Les fichiers .rds dans outputs/ ne se lisent pas dans un éditeur : il faut
+  utiliser readRDS() dans R.
+- Variables météo très incomplètes (tn12, tx12, sw, nombre de stations) :
+  non utilisées. 2022 est une année atypique (crise énergétique).
+- Validations encore à faire : heure répétée d'octobre, zones de vacances
+  (Corse), unités SYNOP, les 4 valeurs de consommation manquantes.
+
+5. DÉCISIONS OUVERTES
+- Garder un ARIMA par heure (précis mais lent) ou passer à un ARIMA
+  quotidien (plus rapide, modèle différent) ? Les deux pourraient servir de
+  "modèle simple" et "modèle élaboré" dans la comparaison.
+- Choix du modèle plus élaboré (apprentissage automatique ?).
+- Que faire de 2022 dans l'apprentissage ?
+
+6. RESTE À FAIRE
+1. Étude d'ablation (sans calendrier, sans retards) et benchmark à météo
+   parfaite (météo observée de J+1, clairement signalé comme non déployable).
+2. Un modèle plus élaboré pour la comparaison benchmark / simple / élaboré.
+3. Évaluation finale unique sur le test 2025, par saison, jours ouvrés /
+   non ouvrés, jours fériés.
+4. Analyse d'au moins trois journées à forte erreur.
+5. Tableau de disponibilité de l'information (source, instant de
+   disponibilité, observé ou prévu, usage, risque de fuite).
+6. Robustesse et conditions d'utilisation déconseillées.
+7. Rapport (< 10 pages), diapositives (10 min max), code reproductible.
+
+7. USAGE DES AGENTS IA (3 exemples à documenter dans le rapport)
+Pistes déjà identifiées :
+- Proposition conservée après vérification : la règle de disponibilité à
+  14 h et le découpage chronologique.
+- Proposition modifiée : le benchmark "jour précédent" naïf utilisait des
+  heures du jour J pas encore connues à 14 h ; il a été corrigé en version
+  "stricte" (B1).
+- Erreur détectée : l'assistant avait deviné des noms de colonnes
+  (timestamp_utc, consumption) et un nom de fichier avec une mauvaise casse
+  (01_prepare_rte.R) ; corrigés après lecture des scripts réels
+  (datetime_utc, consommation, 01_prepare_RTE.R).
+Méthode de vérification à préciser avec le groupe pour chacun.
+
+8. POUR REPRODUIRE
+Ouvrir R à la racine du projet puis : source("R/00_run_pipeline.R")
+(voir README.md pour le détail).
