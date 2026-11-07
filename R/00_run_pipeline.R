@@ -78,8 +78,10 @@ dir.create(
 # ------------------------------------------------------------
 
 # Set a flag to FALSE to skip a stage (e.g. RUN_DATA <- FALSE reuses data/processed/).
-RUN_DATA   <- FALSE   # steps 01-04: data cleaning and merging
-RUN_MODELS <- TRUE   # steps 06-07: benchmarks and ARIMA (07 is slow)
+RUN_DATA   <- TRUE   # steps 01-04: data cleaning and merging
+RUN_BENCHMARKS <- TRUE   # step 06: simple benchmarks
+RUN_ARIMA      <- TRUE   # step 07: per-hour ARIMA (slow, ~45 min)
+RUN_ABLATION   <- TRUE   # step 08: ablation study + perfect-weather benchmark
 
 data_scripts <- c(
   "01_prepare_RTE.R",
@@ -88,14 +90,11 @@ data_scripts <- c(
   "04_merge_datasets.R"
 )
 
-model_scripts <- c(
-  "06_benchmarks.R",
-  "07_arima.R"
-)
-
 scripts <- c(
   if (RUN_DATA) data_scripts,
-  if (RUN_MODELS) model_scripts
+  if (RUN_BENCHMARKS) "06_benchmarks.R",
+  if (RUN_ARIMA) "07_arima.R",
+  if (RUN_ABLATION) "08_ablation.R"
 )
 
 for (script in scripts) {
