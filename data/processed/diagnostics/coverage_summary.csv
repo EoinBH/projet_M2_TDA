@@ -1,0 +1,2 @@
+total_rows,unique_timestamps,first_timestamp,last_timestamp,missing_consumption,missing_temperature,missing_calendar
+35064,35064,2021-12-31T23:00:00Z,2025-12-31T22:00:00Z,4,62,0
