@@ -41,6 +41,7 @@ outputs/             benchmark and model results
 | `06_benchmarks.R` | three simple benchmarks respecting the 14:00 constraint |
 | `07_arima.R` | one seasonal ARIMA with calendar regressors per hour of the day |
 | `08_ablation.R` | fast per-hour linear models: simple operational model, ablation of calendar / lags / weather, perfect-weather bound |
+| `09_error_analysis.R` | errors by season / day type / temperature / hour, largest-error days with context and plots (reads outputs of 06-08, no refitting) |
 
 ## 4. How to run
 
@@ -50,7 +51,7 @@ outputs/             benchmark and model results
    source("R/00_run_pipeline.R")
    ```
    Packages are installed automatically if missing (tidyverse, lubridate, readxl, janitor, jsonlite, stringi, zoo, clock, forecast, tseries).
-3. Stages can be switched on/off with the flags `RUN_DATA`, `RUN_BENCHMARKS`, `RUN_ARIMA`, `RUN_ABLATION` in `00_run_pipeline.R` (for example set all but `RUN_ABLATION` to `FALSE` to run only script 08 on the existing `data/processed/` files).
+3. Stages can be switched on/off with the flags `RUN_DATA`, `RUN_BENCHMARKS`, `RUN_ARIMA`, `RUN_ABLATION`, `RUN_ANALYSIS` in `00_run_pipeline.R` (for example set all but `RUN_ANALYSIS` to `FALSE` to re-run only script 09 on existing outputs).
 
 **Run time:** data preparation is quick; `07_arima.R` is the expensive step (about 45 minutes on the author's machine for the validation year, together with `06`).
 
