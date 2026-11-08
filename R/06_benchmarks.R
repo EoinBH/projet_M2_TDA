@@ -1,8 +1,8 @@
 # 06_benchmarks.R ---------------------------------------------------------
 # Simple benchmarks respecting the 14:00 information constraint.
-# Usage: source("R/06_benchmarks.R")   (sources 05_protocol.R itself)
+# Usage: source("R/06_benchmarks.R")   (sources protocol.R itself)
 
-source("R/05_protocol.R")
+source("R/protocol.R")
 dir.create("outputs", showWarnings = FALSE)
 
 W <- load_wide(cfg)

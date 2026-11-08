@@ -7,7 +7,7 @@
 # Requires: outputs/benchmarks.rds, arima_<split>.rds, ablation_<split>.rds
 # Usage: source("R/09_error_analysis.R")
 
-source("R/05_protocol.R")
+source("R/protocol.R")
 dir.create("outputs/figures", recursive = TRUE, showWarnings = FALSE)
 
 # ---- Settings ----

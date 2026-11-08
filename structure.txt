@@ -5,9 +5,13 @@
 │   ├── 02_prepare_weather.R
 │   ├── 03_prepare_calendar.R
 │   ├── 04_merge_datasets.R
-│   ├── 05_protocol.R
+│   ├── 05_eda.R
 │   ├── 06_benchmarks.R
-│   └── 07_arima.R
+│   ├── 07_arima.R
+│   ├── 08_ablation.R
+│   ├── 09_error_analysis.R
+│   ├── 10_diagnostics.R
+│   └── protocol.R
 ├── README.md
 ├── data
 │   ├── processed

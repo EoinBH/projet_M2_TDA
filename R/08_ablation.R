@@ -11,7 +11,7 @@
 # Does not need outputs of 06/07 (it only compares with them if they exist).
 # Usage: source("R/08_ablation.R")
 
-source("R/05_protocol.R")
+source("R/protocol.R")
 dir.create("outputs", showWarnings = FALSE)
 
 # ---- Settings ----

@@ -21,7 +21,7 @@ comme un modèle déployable.
   été recalculés après la correction ; l'effet sur les scores est faible
   (MAE ARIMA 1643 -> 1654, MAE linéaire 1345 -> 1348) et le classement des
   modèles ne change pas.
-- Protocole (R/05_protocol.R) : matrice jours x 24 heures, règle de
+- Protocole (R/protocol.R, chargé par les autres scripts) : matrice jours x 24 heures, règle de
   disponibilité à 14 h (jours précédents + heures 0 à 13 du jour J),
   découpage chronologique : apprentissage 2022-2023, validation 2024,
   test 2025 (à n'utiliser qu'une seule fois). Métriques : MAE, RMSE, erreur
@@ -42,7 +42,10 @@ comme un modèle déployable.
 - Diagnostics de séries temporelles (R/10_diagnostics.R) : tests de
   stationnarité, ACF/PACF, résidus de l'ARIMA, autocorrélation des erreurs.
 - Tableau de disponibilité de l'information : outputs/information_availability.md
-- Script maître R/00_run_pipeline.R (sans le script 10, à lancer à part).
+- Analyse exploratoire (R/05_eda.R, période d'apprentissage uniquement) :
+  écrite, pas encore exécutée ; figures dans outputs/figures/eda_*.png.
+- Script maître R/00_run_pipeline.R : lance tous les scripts (un
+  interrupteur RUN_* par étape).
 
 3. RÉSULTATS SUR LA VALIDATION (2024, en MW)
 Modèle                         MAE     RMSE    Déployable
@@ -128,7 +131,10 @@ pont ; non vérifié).
 
 7. RESTE À FAIRE
 1. Choisir et ajuster le modèle plus élaboré (comparaison benchmark / simple
-   / élaboré), déployable à 14 h (pistes au point 4).
+   / élaboré), déployable à 14 h (pistes au point 4). Décidé : ajouter la
+   température observée disponible à 14 h (SYNOP 3-horaire brut, sans
+   interpolation) au modèle linéaire et à l'ARIMA, comme nouvelles versions
+   (les anciennes versions sont conservées pour la comparaison).
 2. Évaluation finale unique sur le test 2025 (EVAL_SPLIT <- "test" dans 07,
    08, 09 et 10), par saison, jours ouvrés / non ouvrés, jours fériés.
    Ne rien régler sur le test.
@@ -158,4 +164,4 @@ Méthode de vérification à préciser avec le groupe pour chacun.
 
 9. POUR REPRODUIRE
 Ouvrir R à la racine du projet puis : source("R/00_run_pipeline.R")
-puis source("R/10_diagnostics.R") (voir README.md pour le détail).
+(un interrupteur RUN_* par étape ; voir README.md pour le détail).

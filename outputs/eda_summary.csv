@@ -1,0 +1,7 @@
+"quantity","value"
+"working-day / weekend mean consumption ratio",1.12
+"winter (DJF) / summer (JJA) mean consumption ratio",1.47
+"correlation daily consumption - temperature",-0.83
+"heating gradient below 15 deg C, working days (MW per deg C)",-2298.93
+"median deviation on public holidays (%)",-12.32
+"mean consumption 2023 vs 2022 (%, raw)",-3.42

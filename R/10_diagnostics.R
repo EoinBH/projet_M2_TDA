@@ -10,7 +10,7 @@
 # arima_<split>.rds and ablation_<split>.rds).
 # Usage: source("R/10_diagnostics.R")
 
-source("R/05_protocol.R")
+source("R/protocol.R")
 for (p in c("forecast", "tseries"))
   if (!requireNamespace(p, quietly = TRUE)) stop("Package '", p, "' is required.")
 suppressPackageStartupMessages(library(forecast))

@@ -1,7 +1,7 @@
-# 05_protocol.R -----------------------------------------------------------
+# protocol.R --------------------------------------------------------------
 # Forecast protocol: configuration, data loading, availability rules,
 # chronological splits and evaluation metrics.
-# Usage: source("R/05_protocol.R")
+# Not run on its own: sourced at the start of scripts 05 to 10 (source("R/protocol.R")).
 
 suppressPackageStartupMessages({
   library(dplyr)

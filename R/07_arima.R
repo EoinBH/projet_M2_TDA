@@ -11,7 +11,7 @@
 # Expensive step: ~ several minutes (24 models x daily one/two-step forecasts).
 # Usage: source("R/07_arima.R")
 
-source("R/05_protocol.R")
+source("R/protocol.R")
 if (!requireNamespace("forecast", quietly = TRUE))
   stop("Package 'forecast' is required (install.packages('forecast')).")
 suppressPackageStartupMessages(library(forecast))

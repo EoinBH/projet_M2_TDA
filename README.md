@@ -33,17 +33,18 @@ pour-Tom/            status files for the project partner (French)
 
 | Script | Role |
 |---|---|
-| `00_run_pipeline.R` | master script: installs packages, runs everything (except 10) |
+| `00_run_pipeline.R` | master script: installs packages, runs everything (stages switched by `RUN_*` flags) |
 | `01_prepare_RTE.R` | import and hourly aggregation of RTE data |
 | `02_prepare_weather.R` | import, filtering, aggregation and interpolation of SYNOP data |
 | `03_prepare_calendar.R` | holidays, school holidays, calendar features |
 | `04_merge_datasets.R` | UTC merge, local timestamps, diagnostics -> `modelling_dataset.csv` |
-| `05_protocol.R` | configuration, hourly matrix (days x 24 hours), availability rule, splits, metrics (sourced by 06/07) |
+| `05_eda.R` | exploratory analysis on the **training period only**: daily and weekly cycles, annual seasonality, relation with temperature, calendar effects, 2022 level shift, atypical days (figures `outputs/figures/eda_*.png`, tables `outputs/eda_*.csv`) |
+| `protocol.R` | not run directly: configuration, hourly matrix (days x 24 hours), availability rule, splits, metrics; sourced by scripts 05-10 |
 | `06_benchmarks.R` | three simple benchmarks respecting the 14:00 constraint |
 | `07_arima.R` | one seasonal ARIMA with calendar regressors per hour of the day |
 | `08_ablation.R` | fast per-hour linear models: simple operational model, ablation of calendar / lags / weather, perfect-weather bound |
 | `09_error_analysis.R` | errors by season / day type / temperature / hour, largest-error days with context and plots (reads outputs of 06-08, no refitting) |
-| `10_diagnostics.R` | ADF/KPSS tests and ACF/PACF of the daily series (train), ARIMA residual diagnostics (Ljung-Box, normality, variance by season), autocorrelation of out-of-sample forecast errors; run after 07 and 08 with `source("R/10_diagnostics.R")` |
+| `10_diagnostics.R` | ADF/KPSS tests and ACF/PACF of the daily series (train), ARIMA residual diagnostics (Ljung-Box, normality, variance by season), autocorrelation of out-of-sample forecast errors; needs the outputs of 07 and 08 |
 
 ## 4. How to run
 
@@ -53,7 +54,7 @@ pour-Tom/            status files for the project partner (French)
    source("R/00_run_pipeline.R")
    ```
    Packages are installed automatically if missing (tidyverse, lubridate, readxl, janitor, jsonlite, stringi, zoo, clock, forecast, tseries).
-3. Stages can be switched on/off with the flags `RUN_DATA`, `RUN_BENCHMARKS`, `RUN_ARIMA`, `RUN_ABLATION`, `RUN_ANALYSIS` in `00_run_pipeline.R` (for example set all but `RUN_ANALYSIS` to `FALSE` to re-run only script 09 on existing outputs). Script 10 is not part of the pipeline: run it separately after 07 and 08.
+3. Stages can be switched on/off with the flags `RUN_DATA` (01-04), `RUN_EDA` (05), `RUN_BENCHMARKS` (06), `RUN_ARIMA` (07), `RUN_ABLATION` (08), `RUN_ANALYSIS` (09), `RUN_DIAGNOSTICS` (10) in `00_run_pipeline.R` (for example set all but `RUN_ANALYSIS` to `FALSE` to re-run only script 09 on existing outputs).
 
 **Run time:** data preparation is quick; `07_arima.R` is the expensive step (about 45 minutes on the author's machine for the validation year, together with `06`).
 
@@ -87,7 +88,7 @@ pour-Tom/            status files for the project partner (French)
 ## 8. Project status, results and next steps (as of 8 Nov 2026)
 
 ### Status
-Scripts 00-10 are written. Scripts 06-10 have been run on the **validation year (2024) only**, after the calendar fix below. The **test year (2025) has not been used** and must be evaluated only once, at the very end.
+Scripts 00-10 are written. Scripts 06-10 have been run on the **validation year (2024) only**, after the calendar fix below. `05_eda.R` (training period only) is written but has not been run yet; check its figures and tables before writing the exploration section of the report. The **test year (2025) has not been used** and must be evaluated only once, at the very end.
 
 ### Calendar bug (fixed)
 `03_prepare_calendar.R` silently dropped every school-holiday event labelled with several zones ("Zones A/B/C", "Zones A/C", ...): 60 of 76 events, including all Christmas, Toussaint and summer breaks. It was found by checking the largest-error day (24 Dec 2024) against the official school calendar. After the fix: 121-128 flagged days per zone and year, and Christmas Eve is flagged in every year. The fix changed the scores very little (ARIMA MAE 1643.5 -> 1654.2, `cal_lags` 1345 -> 1348), and the ranking of models is unchanged. It did **not** explain the 24 Dec error (5364 -> 5373 MW), see failure days.
@@ -135,7 +136,7 @@ Suggested three for the report (one per class, facts verified): 2024-11-24, 2024
 - Resolved: identical Saturday/Sunday MAE (coincidence: 14 July 2024, a Sunday public holiday, is excluded from the Sunday segment); school-holiday flags (see calendar bug); information-availability table.
 
 ### Remaining work (from the course brief)
-1. Choose the "more elaborate model" for the benchmark / simple / elaborate comparison. Leads from the diagnostics: a regression with AR/ARMA errors or an error correction using the morning (hours 0-13) of day J, because daily errors are autocorrelated even with perfect weather; a machine-learning model on the same lag features; variance stabilisation (winter errors are 2-3 times larger). Keep everything deployable at 14:00.
+1. Choose the "more elaborate model" for the benchmark / simple / elaborate comparison. Leads from the diagnostics: a regression with AR/ARMA errors or an error correction using the morning (hours 0-13) of day J, because daily errors are autocorrelated even with perfect weather; a machine-learning model on the same lag features; variance stabilisation (winter errors are 2-3 times larger). Keep everything deployable at 14:00. Decided: add the operational temperature available at 14:00 (raw 3-hourly SYNOP observations up to a conservative cut-off, no hourly interpolation, which would use later observations) to the linear model and the ARIMA as new model versions, keeping the previous versions for comparison.
 2. Final single evaluation on the test year 2025 (set `EVAL_SPLIT <- "test"` in 07, 08, 09 and 10; 07 takes ~45 min; do not tune anything on it). By season, working / non-working days and public holidays.
 3. Write up the three failure days (table above).
 4. Robustness discussion (stability of model ranking across periods, metrics and hours) and situations where the system should not be used (cold snaps, rare calendar events, regime breaks).
@@ -144,7 +145,7 @@ Suggested three for the report (one per class, facts verified): 2024-11-24, 2024
 
 ### Notes for an AI assistant continuing this work
 - The group is on a free plan with limited tokens: deliver work in increments, do not run slow code (script 07 takes ~45 min) and do not read raw data; read only the R scripts and the `outputs/` CSV files when needed. Long conversations use the allowance faster, so start a new chat when the context gets long.
-- Run scripts from the project root; `R/00_run_pipeline.R` has flags `RUN_DATA`, `RUN_BENCHMARKS`, `RUN_ARIMA`, `RUN_ABLATION`, `RUN_ANALYSIS` to run stages separately. Script 10 is run on its own.
+- Run scripts from the project root; `R/00_run_pipeline.R` has one `RUN_*` flag per stage (data, EDA, benchmarks, ARIMA, ablation, analysis, diagnostics). `R/protocol.R` is sourced by scripts 05-10 and is not run on its own.
 - Column names: time `datetime_utc`, target `consommation`, temperature `t`, calendar `is_public_holiday`, `is_holiday_eve`, `school_holiday_A/B/C`.
 - Never use observed J+1 weather in an operational model; it is only a labelled perfect-weather benchmark.
 - French status file for the project partner (who writes the report): `pour-Tom/statut_projet.txt` (updated 8 Nov 2026 evening).
