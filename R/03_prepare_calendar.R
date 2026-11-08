@@ -250,27 +250,23 @@ school_events <- map_dfr(events, function(event) {
     " "
   )
 
-  # Identify the zone from event information.
-  zone <- case_when(
-    str_detect(
-      str_to_lower(event_text),
-      "zone\\s*a"
-    ) ~ "A",
+  # Zones concerned by the event. The ICS labels are e.g.
+  # "Vacances de Noel - Zones A/B/C - Corse", "... - Zones A/C", "... - Zone B".
+  # (The previous version only matched "Zone A" / "Zone B" / "Zone C" and
+  # silently dropped every multi-zone event, e.g. all Christmas breaks.)
+  # Events naming no zone (Corsica-only events) are ignored on purpose.
+  zone_text <- str_match(
+    str_to_lower(event_text),
+    "zones?\\s*([abc](?:\\s*[/,&]\\s*[abc])*)"
+  )[, 2]
 
-    str_detect(
-      str_to_lower(event_text),
-      "zone\\s*b"
-    ) ~ "B",
+  zones <- if (is.na(zone_text)) {
+    character()
+  } else {
+    toupper(unique(str_extract_all(zone_text, "[abc]")[[1]]))
+  }
 
-    str_detect(
-      str_to_lower(event_text),
-      "zone\\s*c"
-    ) ~ "C",
-
-    TRUE ~ NA_character_
-  )
-
-  if (is.na(zone)) {
+  if (length(zones) == 0) {
     return(tibble())
   }
 
@@ -289,13 +285,13 @@ school_events <- map_dfr(events, function(event) {
     return(tibble())
   }
 
-  tibble(
+  expand_grid(
     date = seq.Date(
       start_date,
       end_inclusive,
       by = "day"
     ),
-    zone = zone
+    zone = zones
   )
 })
 
@@ -462,5 +458,24 @@ print(
       zone_C = sum(school_holiday_C)
     )
 )
+
+# Sanity check of school-holiday coverage: days flagged per year and zone,
+# and Christmas Eve must be a national school holiday in every year.
+print(
+  calendar_daily %>%
+    group_by(year) %>%
+    summarise(
+      zone_A = sum(school_holiday_A),
+      zone_B = sum(school_holiday_B),
+      zone_C = sum(school_holiday_C)
+    )
+)
+
+xmas_eve <- calendar_daily %>%
+  filter(month == 12, day_of_month == 24)
+
+if (any(!xmas_eve$is_school_holiday_national)) {
+  warning("Christmas Eve is not flagged as a national school holiday in some years.")
+}
 
 message("Calendar preparation completed.")

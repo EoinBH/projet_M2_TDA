@@ -103,11 +103,13 @@ grp <- list(
   cal  = intersect(c("wd", "holiday", "eve", "vacA", "vacB", "vacC", "s1", "c1", "s2", "c2"),
                    names(CAL)),
   lags = c("lag_w", "lag_d", "lag_mean2", "lag_last"),
+  lags_no13 = c("lag_w", "lag_d", "lag_mean2"),
   wx   = c("temp", "hdd", "cdd", "hdd_day")
 )
 models <- list(
   cal_only            = "cal",
   lags_only           = "lags",
+  cal_lags_no13       = c("cal", "lags_no13"),
   cal_lags            = c("cal", "lags"),          # simple OPERATIONAL linear model
   FULL_PERFECT_WX     = c("cal", "lags", "wx"),    # upper bound, not deployable
   noCal_PERFECT_WX    = c("lags", "wx"),
