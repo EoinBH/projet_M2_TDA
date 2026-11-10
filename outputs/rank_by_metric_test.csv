@@ -1,0 +1,7 @@
+"","MAE","RMSE","MAE_daily_tot","MAE_peak_value","MAE_peak_hour"
+"cal_lags",1,2,1,1,2
+"cal_lags_tempJ",2,1,2,2,1
+"arima_v2",3,3,3,3,4
+"B1_prev_day_strict",4,4,4,4,5
+"B2_same_weekday_lw",5,6,5,5,6
+"B3_mean_4_weeks",6,5,6,6,3

@@ -1,0 +1,5 @@
+"","MAE","RMSE","MAE_daily_tot","MAE_peak_value","MAE_peak_hour"
+"arima_v2",1617.1,2290.7,32586.3,1559,2
+"B1_prev_day_strict",3114,4275.2,69819.5,3220.8,2.2
+"B2_same_weekday_lw",3448.8,5136.4,78529.8,3517.5,2.2
+"B3_mean_4_weeks",3630.7,5116.1,84361.3,3709.4,1.8
