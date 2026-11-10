@@ -11,7 +11,7 @@ source("R/protocol.R")
 dir.create("outputs/figures", recursive = TRUE, showWarnings = FALSE)
 
 # ---- Settings ----
-EVAL_SPLIT  <- "val"
+# EVAL_SPLIT ("val" or "test") comes from protocol.R / the top of 00_run_pipeline.R
 REF_MODEL   <- "cal_lags"     # operational model whose failures are analysed
 N_FAIL      <- 10             # failure days listed
 N_FAIL_PLOT <- 3              # failure days plotted

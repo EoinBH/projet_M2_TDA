@@ -16,7 +16,7 @@ suppressPackageStartupMessages(library(forecast))
 dir.create("outputs/figures", recursive = TRUE, showWarnings = FALSE)
 
 # ---- Settings ----
-EVAL_SPLIT <- "val"             # split used in part C ("test" only for the final run)
+# EVAL_SPLIT ("val" or "test", used in part C) comes from protocol.R / the top of 00_run_pipeline.R
 H_SHOW     <- c(3, 8, 13, 19)   # hours shown in the figures
 LB_LAG     <- 14                # Ljung-Box lag (two weeks)
 K_ANNUAL   <- 2

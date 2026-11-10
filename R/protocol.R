@@ -21,6 +21,11 @@ cfg <- list(
   val_end      = as.Date("2024-12-31")   # test = 2025 (do NOT tune on it)
 )
 
+# Single switch for the evaluated split: set EVAL_SPLIT <- "test" ONCE at the top of
+# 00_run_pipeline.R (or in the console before sourcing a script); default is "val".
+if (!exists("EVAL_SPLIT")) EVAL_SPLIT <- "val"
+message("Evaluation split: ", EVAL_SPLIT)
+
 # ---- 2. Load and reshape: one row per local date, 24 columns (hours 0..23) ----
 load_wide <- function(cfg) {
   d <- read_csv(cfg$data_path, show_col_types = FALSE)

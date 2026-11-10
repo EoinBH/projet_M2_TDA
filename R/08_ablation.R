@@ -17,7 +17,7 @@ source("R/protocol.R")
 dir.create("outputs", showWarnings = FALSE)
 
 # ---- Settings ----
-EVAL_SPLIT  <- "val"    # use "test" ONLY once, for the final evaluation
+# EVAL_SPLIT ("val" or "test") comes from protocol.R / the top of 00_run_pipeline.R; "test" ONLY once
 REFIT_EVERY <- 28       # same re-estimation frequency as 07_arima.R
 K_ANNUAL    <- 2
 col_temp    <- "t"      # SYNOP temperature column (Kelvin in Météo-France files; auto-converted)

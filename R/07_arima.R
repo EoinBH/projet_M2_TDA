@@ -22,10 +22,10 @@ suppressPackageStartupMessages(library(forecast))
 dir.create("outputs", showWarnings = FALSE)
 
 # ---- Settings ----
-EVAL_SPLIT   <- "val"                 # use "test" ONLY once, for the final evaluation
+# EVAL_SPLIT ("val" or "test") comes from protocol.R / the top of 00_run_pipeline.R; "test" ONLY once
 REFIT_EVERY  <- 28                    # re-estimate coefficients every 28 target days
 K_ANNUAL     <- 2                     # number of annual Fourier pairs
-SPECS_TO_RUN <- names(ARIMA_SPECS)    # e.g. "arima_v2" to run only the new version
+if (!exists("SPECS_TO_RUN")) SPECS_TO_RUN <- names(ARIMA_SPECS)    # e.g. "arima_v2" to run only that version
 FORCE_RERUN  <- FALSE                 # TRUE recomputes versions whose results exist
 
 W <- load_wide(cfg); M <- W$M; dates <- W$dates
@@ -54,6 +54,14 @@ run_spec <- function(name) {
   # ---- Step 1: select ARIMA orders on TRAIN ONLY (one per hour) ----
   message("[", name, "] Step 1/2: selecting the order of each of the 24 hourly models ",
           "on the training period (this step can take several minutes) ...")
+  ord_file <- sprintf("outputs/%s_orders.csv", name)
+  if (file.exists(ord_file)) {
+    # orders already chosen on the training period: re-use them so that the test run
+    # uses exactly the validated specification (delete the file to re-select)
+    ord_tab <- as.matrix(read.csv(ord_file, row.names = 1))
+    orders <- lapply(seq_len(24), function(i) as.numeric(ord_tab[i, ]))
+    message("[", name, "] orders re-used from ", ord_file)
+  } else {
   orders <- vector("list", 24)
   for (h in 0:23) {
     f <- auto.arima(ts(M[idx_tr, h + 1], frequency = 7),
@@ -68,7 +76,8 @@ run_spec <- function(name) {
   }
   ord_tab <- do.call(rbind, orders); rownames(ord_tab) <- paste0("h", 0:23)
   print(ord_tab)
-  write.csv(ord_tab, sprintf("outputs/%s_orders.csv", name))
+  write.csv(ord_tab, ord_file)
+  }
 
   # ---- Step 2: rolling forecasts with periodic re-estimation ----
   P <- matrix(NA_real_, length(tg), 24, dimnames = list(as.character(tg), paste0("h", 0:23)))

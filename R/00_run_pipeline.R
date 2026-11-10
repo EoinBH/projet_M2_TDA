@@ -78,6 +78,10 @@ dir.create(
 # ------------------------------------------------------------
 
 # Set a flag to FALSE to skip a stage (e.g. RUN_DATA <- FALSE reuses data/processed/).
+# ---- SINGLE SWITCH for the evaluated split (read by scripts 07-12 via protocol.R) ----
+EVAL_SPLIT   <- "val"                 # "test" ONLY once, after the protocol is frozen
+SPECS_TO_RUN <- c("arima_v1", "arima_v2")   # ARIMA versions run by 07; for the test run use "arima_v2" only (frozen lineup)
+
 RUN_DATA   <- FALSE   # steps 01-04: data cleaning and merging
 RUN_EDA        <- TRUE   # step 05: exploratory analysis (training period only, figures)
 RUN_BENCHMARKS <- TRUE   # step 06: simple benchmarks
