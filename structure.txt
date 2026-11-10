@@ -1,56 +1,29 @@
 .
-├── R
-│   ├── 00_run_pipeline.R
-│   ├── 01_prepare_RTE.R
-│   ├── 02_prepare_weather.R
-│   ├── 03_prepare_calendar.R
-│   ├── 04_merge_datasets.R
-│   ├── 05_eda.R
-│   ├── 06_benchmarks.R
-│   ├── 07_arima.R
+├── README.md                      overview, protocol, results, how to run
+├── consignes-projet.txt           course brief
+├── sujet-projet-prevision-electricite.pdf
+├── R/
+│   ├── 00_run_pipeline.R          master script (EVAL_SPLIT, SPECS_TO_RUN, RUN_* flags, steps 01-12)
+│   ├── 01_prepare_RTE.R ... 04_merge_datasets.R
+│   ├── 05_eda.R                   exploratory analysis (training period)
+│   ├── 06_benchmarks.R
+│   ├── 07_arima.R
 │   ├── 08_ablation.R
 │   ├── 09_error_analysis.R
 │   ├── 10_diagnostics.R
-│   └── protocol.R
-├── README.md
-├── data
-│   ├── processed
-│   │   ├── calendar_hourly.csv
-│   │   ├── diagnostics
-│   │   │   ├── coverage_summary.csv
-│   │   │   ├── missing_timestamps.csv
-│   │   │   └── missing_values_summary.csv
-│   │   ├── modelling_dataset.csv
-│   │   ├── rte_hourly.csv
-│   │   ├── weather_3hourly.csv
-│   │   └── weather_hourly.csv
-│   └── raw
-│       ├── calendar
-│       │   ├── Zone-A-B-C-Corse.ics
-│       │   └── public_holidays.json
-│       ├── meteo
-│       │   ├── observations-descriptif-technique-donnees-synop-omm-20260420.pdf
-│       │   ├── observations-liste-stations-synop-omm-20250710.csv
-│       │   ├── postes_synop.geojson
-│       │   ├── synop_2022.csv
-│       │   ├── synop_2023.csv
-│       │   ├── synop_2024.csv
-│       │   └── synop_2025.csv
-│       └── rte
-│           ├── Eco2mix - Spécifications des fichiers en puissance.pdf
-│           ├── eCO2mix_RTE_Annuel-Definitif_2022.xls
-│           ├── eCO2mix_RTE_Annuel-Definitif_2023.xls
-│           ├── eCO2mix_RTE_Annuel-Definitif_2024.xls
-│           └── eCO2mix_RTE_Annuel-Definitif_2025.xls
-├── outputs
-│   ├── arima_orders.csv
-│   ├── arima_val.rds
-│   ├── benchmarks.rds
-│   ├── benchmarks_validation.csv
-│   └── scores_val.csv
-├── pour-Tom
-│   └── data-prep-summary.txt
-├── structure.txt
-└── sujet-projet-prevision-electricite.pdf
+│   ├── 11_tests_and_bias.R        paired tests, bias by month, ranking stability
+│   ├── 12_report_figures.R        report figures
+│   ├── load_results.R             helper for 11 and 12 (not run directly)
+│   └── protocol.R                 configuration, splits, metrics (not run directly)
+├── data/
+│   ├── raw/                       calendar/, meteo/, rte/ (unchanged inputs)
+│   └── processed/                 modelling_dataset.csv, rte_hourly.csv, weather_*.csv,
+│                                  calendar_hourly.csv, diagnostics/
+├── outputs/                       result tables (*.csv), saved forecasts (*.rds),
+│   │                              information_availability.md, model_log.csv
+│   └── figures/                   all PNG figures (list in README.md, section 7)
+└── pour-Tom/                      French summaries for the partner
+    ├── statut_projet.txt, resultats.md, jours-echec.md,
+    └── robustesse.md, usage-ia.md, data-prep-summary.txt
 
-11 directories, 39 files
+Outputs are suffixed _val (validation 2024) or _test (test 2025).

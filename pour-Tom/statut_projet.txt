@@ -113,10 +113,14 @@ avec readRDS() dans R. (* = val et test)
 
 7. POUR REPRODUIRE (détail : README.md, sections 4 et 7)
 Ouvrir R à la racine du projet.
-- Validation : source("R/00_run_pipeline.R") (EVAL_SPLIT <- "val" par
-  défaut, un interrupteur RUN_* par étape), puis à la main :
-  source("R/11_tests_and_bias.R") et source("R/12_report_figures.R").
-- Test (une seule fois), session R neuve :
+- Validation : source("R/00_run_pipeline.R") (EVAL_SPLIT <- "val" en tête
+  du script, un interrupteur RUN_* par étape ; les étapes 01 à 12 sont
+  enchaînées, y compris les tests (11) et les figures (12)).
+- Pour tout recalculer : supprimer outputs/arima_v*_val.rds (ARIMA) et
+  outputs/arima_v*_orders.csv (choix des ordres sur l'apprentissage).
+- Test (une seule fois) : soit modifier EVAL_SPLIT et SPECS_TO_RUN en tête de
+  00_run_pipeline.R (et mettre RUN_DATA, RUN_EDA, RUN_BENCHMARKS à FALSE),
+  soit, dans une session R neuve :
   EVAL_SPLIT <- "test"; SPECS_TO_RUN <- "arima_v2"; source("R/07_arima.R")
   puis source() de 08, 09, 10 (facultatif), 11, et
   FAIL_DATES <- NULL; source("R/12_report_figures.R").

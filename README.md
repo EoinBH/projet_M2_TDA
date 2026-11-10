@@ -33,7 +33,7 @@ pour-Tom/            French summaries for the project partner (status, results, 
 
 | Script | Role |
 |---|---|
-| `00_run_pipeline.R` | master script: packages, **single switch `EVAL_SPLIT`** (`"val"` or `"test"`), `SPECS_TO_RUN` (ARIMA versions), one `RUN_*` flag per stage (01-10) |
+| `00_run_pipeline.R` | master script: packages, **single switch `EVAL_SPLIT`** (`"val"` or `"test"`), `SPECS_TO_RUN` (ARIMA versions), one `RUN_*` flag per stage (01-12) |
 | `01_prepare_RTE.R` ... `04_merge_datasets.R` | data preparation -> `data/processed/modelling_dataset.csv` |
 | `05_eda.R` | exploratory analysis, **training period only** |
 | `protocol.R` | not run directly: configuration, hourly matrix (days x 24), availability rule, splits, metrics, `ARIMA_SPECS`, operational temperature features; sourced by 05-10 and `load_results.R` |
@@ -49,12 +49,9 @@ pour-Tom/            French summaries for the project partner (status, results, 
 ## 4. How to run
 
 1. Open R with the **project root as working directory**. Packages are installed automatically by `00_run_pipeline.R` if missing.
-2. **Validation run** (`EVAL_SPLIT <- "val"`, the default): `source("R/00_run_pipeline.R")`, with the `RUN_*` flags set to the stages wanted. Scripts 11 and 12 are **not** wired into `00_run_pipeline.R`; run them by hand:
-   ```r
-   EVAL_SPLIT <- "val"; source("R/11_tests_and_bias.R")
-   EVAL_SPLIT <- "val"; source("R/12_report_figures.R")
-   ```
-3. **Test run (once, after the protocol is frozen)**, in a fresh R session at the project root:
+2. **Validation run** (`EVAL_SPLIT <- "val"` at the top of `00_run_pipeline.R`): `source("R/00_run_pipeline.R")`, with the `RUN_*` flags set to the stages wanted (`RUN_DATA` is `FALSE` by default because `data/processed/` is included; set it to `TRUE` to rebuild it from `data/raw/`). The pipeline runs steps 01-12 in order, including the tests (11) and the report figures (12).
+   **Re-running from scratch:** existing results are re-used. To recompute the ARIMA models delete `outputs/arima_v*_val.rds` (or set `FORCE_RERUN <- TRUE` as described in `07_arima.R`); to re-select the ARIMA orders on the training period delete `outputs/arima_v*_orders.csv`.
+3. **Test run (once, after the protocol is frozen).** Either edit the two lines at the top of `00_run_pipeline.R` (`EVAL_SPLIT <- "test"`, `SPECS_TO_RUN <- "arima_v2"`, and the flags `RUN_DATA`, `RUN_EDA`, `RUN_BENCHMARKS` set to `FALSE`) and source it, or run the scripts one by one in a fresh R session at the project root:
    ```r
    EVAL_SPLIT <- "test"; SPECS_TO_RUN <- "arima_v2"; source("R/07_arima.R")
    source("R/08_ablation.R")       # reads the scores written by 07, so 07 comes first
@@ -166,7 +163,7 @@ Figures were produced by the scripts; check each visually before inserting it in
 
 - Report (< 10 pages) and 10-minute slides, written by the partner from `pour-Tom/`.
 - Complete the `[À COMPLÉTER]` items in `pour-Tom/usage-ia.md`.
-- Repository clean-up before submission (ignore `.RData`, `.Rhistory`, `.DS_Store`, large `.rds`; remove `TODO_PROMPTS.md` if not wanted), then tag the final commit.
+- Commit the final state and tag it. Existing tags: `v1-baseline`, `pre-test` (protocol frozen), `apres-test` (test run done).
 
 ## Conventions
 - Column names: time `datetime_utc`, target `consommation`, temperature `t`, calendar `is_public_holiday`, `is_holiday_eve`, `school_holiday_A/B/C`.

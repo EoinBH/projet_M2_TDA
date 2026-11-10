@@ -89,6 +89,12 @@ RUN_ARIMA      <- TRUE   # step 07: per-hour ARIMA versions v1, v2 (slow, ~45 mi
 RUN_ABLATION   <- TRUE   # step 08: ablation study + perfect-weather benchmark
 RUN_ANALYSIS   <- TRUE   # step 09: errors by segment/hour, failure days (needs outputs of 06-08)
 RUN_DIAGNOSTICS <- TRUE  # step 10: stationarity, ACF/PACF, residual and forecast-error checks (needs 07 and 08)
+RUN_TESTS      <- TRUE   # step 11: paired tests, bias by month, ranking stability (reads saved forecasts, seconds)
+RUN_FIGURES    <- TRUE   # step 12: report figures (reads saved forecasts, seconds)
+
+# Failure days plotted by step 12: the three days chosen on validation; on the test split
+# NULL makes step 12 plot the 3 worst test days of cal_lags instead.
+FAIL_DATES <- if (EVAL_SPLIT == "val") as.Date(c("2024-11-24", "2024-01-08", "2024-12-24")) else NULL
 
 data_scripts <- c(
   "01_prepare_RTE.R",
@@ -104,7 +110,9 @@ scripts <- c(
   if (RUN_ARIMA) "07_arima.R",
   if (RUN_ABLATION) "08_ablation.R",
   if (RUN_ANALYSIS) "09_error_analysis.R",
-  if (RUN_DIAGNOSTICS) "10_diagnostics.R"
+  if (RUN_DIAGNOSTICS) "10_diagnostics.R",
+  if (RUN_TESTS) "11_tests_and_bias.R",
+  if (RUN_FIGURES) "12_report_figures.R"
 )
 
 for (script in scripts) {
