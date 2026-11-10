@@ -1,0 +1,11 @@
+"model","MAE"
+"full model
+(perfect wx)",866.9
+"- weather",1348.3
+"- calendar",1722.9
+"- lags",1577.5
+"cal_only",2852.8
+"lags_only",2176.8
+"cal_lags_no13",1499.3
+"cal_lags",1348.3
+"cal_lags_tempJ",1336.8

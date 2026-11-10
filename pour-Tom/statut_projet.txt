@@ -134,7 +134,8 @@ pont ; non vérifié).
    / élaboré), déployable à 14 h (pistes au point 4). Décidé : ajouter la
    température observée disponible à 14 h (SYNOP 3-horaire brut, sans
    interpolation) au modèle linéaire et à l'ARIMA, comme nouvelles versions
-   (les anciennes versions sont conservées pour la comparaison).
+   (arima_v2 et cal_lags_tempJ : implémentées, pas encore exécutées ; les
+   versions v1 sont conservées ; journal des versions : outputs/model_log.csv).
 2. Évaluation finale unique sur le test 2025 (EVAL_SPLIT <- "test" dans 07,
    08, 09 et 10), par saison, jours ouvrés / non ouvrés, jours fériés.
    Ne rien régler sur le test.

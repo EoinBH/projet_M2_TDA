@@ -1,0 +1,5 @@
+"","cal_lags","cal_lags_tempJ","arima_v1","arima_v2","B1_prev_day_strict","B2_same_weekday_lw","B3_mean_4_weeks"
+"Q1",2,1,4,3,5,6,7
+"Q2",2,1,4,3,7,5,6
+"Q3",1,2,3,4,7,6,5
+"Q4",2,1,4,3,5,6,7

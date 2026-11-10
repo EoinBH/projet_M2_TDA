@@ -22,12 +22,18 @@ cal_cols <- c(holiday = "is_public_holiday", eve = "is_holiday_eve",
 
 # ---- Load forecasts and align on identical dates ----
 ab <- readRDS(paste0("outputs/ablation_", EVAL_SPLIT, ".rds"))
-ar <- readRDS(paste0("outputs/arima_", EVAL_SPLIT, ".rds"))
+arima_files <- Sys.glob(paste0("outputs/arima_v*_", EVAL_SPLIT, ".rds"))   # all ARIMA versions
+AR <- setNames(lapply(arima_files, readRDS),
+               sub(paste0("_", EVAL_SPLIT, "\\.rds$"), "", basename(arima_files)))
+stopifnot(length(AR) > 0)
+ARIMA_REF <- names(AR)[length(AR)]       # latest ARIMA version, used in the failure-day plot
 bm <- readRDS("outputs/benchmarks.rds")
 tg <- ab$targets; obs <- ab$obs
-stopifnot(all(tg == ar$targets), REF_MODEL %in% names(ab$pred))
+stopifnot(all(sapply(AR, function(a) all(a$targets == tg))), REF_MODEL %in% names(ab$pred))
 ib <- match(tg, bm$targets)
-P <- c(list(cal_lags = ab$pred$cal_lags, ARIMA_per_hour = ar$pred),
+lin <- intersect(c("cal_lags", "cal_lags_tempJ"), names(ab$pred))   # operational linear versions
+P <- c(ab$pred[lin],
+       lapply(AR, function(a) a$pred),
        lapply(bm$preds, function(p) p[ib, , drop = FALSE]),
        list(FULL_PERFECT_WX = ab$pred$FULL_PERFECT_WX))
 OPER <- setdiff(names(P), "FULL_PERFECT_WX")   # deployable models
@@ -83,7 +89,7 @@ write.csv(seg_tab, paste0("outputs/errors_by_segment_", EVAL_SPLIT, ".csv"), row
 mae_h <- sapply(P, function(p) colMeans(abs(p - obs)))
 rownames(mae_h) <- 0:23
 write.csv(round(mae_h, 0), paste0("outputs/mae_by_hour_", EVAL_SPLIT, ".csv"))
-png("outputs/figures/mae_by_hour.png", width = 900, height = 500)
+png(paste0("outputs/figures/mae_by_hour_", EVAL_SPLIT, ".png"), width = 900, height = 500)
 matplot(0:23, mae_h[, OPER], type = "l", lty = 1, lwd = 2, col = seq_along(OPER),
         xlab = "Hour of target day (local)", ylab = "MAE (MW)",
         main = paste("MAE by hour -", EVAL_SPLIT))
@@ -116,17 +122,17 @@ print(fail)
 write.csv(fail, paste0("outputs/failure_days_", EVAL_SPLIT, ".csv"), row.names = FALSE)
 
 # Plot the top failure days: observed vs forecasts
-png("outputs/figures/failure_days.png", width = 1300, height = 450)
+png(paste0("outputs/figures/failure_days_", EVAL_SPLIT, ".png"), width = 1300, height = 450)
 par(mfrow = c(1, N_FAIL_PLOT))
 for (k in seq_len(N_FAIL_PLOT)) {
   i <- sel[k]
-  yl <- range(obs[i, ], P[[REF_MODEL]][i, ], P$ARIMA_per_hour[i, ], P$FULL_PERFECT_WX[i, ])
+  yl <- range(obs[i, ], P[[REF_MODEL]][i, ], P[[ARIMA_REF]][i, ], P$FULL_PERFECT_WX[i, ])
   plot(0:23, obs[i, ], type = "l", lwd = 3, ylim = yl, xlab = "Hour", ylab = "MW",
        main = paste(tg[i], ctx$weekday[i], "| T =", ctx$tmean[i], "C"))
   lines(0:23, P[[REF_MODEL]][i, ], col = "red", lwd = 2)
-  lines(0:23, P$ARIMA_per_hour[i, ], col = "blue", lwd = 2)
+  lines(0:23, P[[ARIMA_REF]][i, ], col = "blue", lwd = 2)
   lines(0:23, P$FULL_PERFECT_WX[i, ], col = "darkgreen", lwd = 2, lty = 2)
-  if (k == 1) legend("topleft", c("observed", REF_MODEL, "ARIMA", "perfect weather"),
+  if (k == 1) legend("topleft", c("observed", REF_MODEL, ARIMA_REF, "perfect weather"),
                      col = c("black", "red", "blue", "darkgreen"), lwd = 2, lty = c(1, 1, 1, 2), cex = 0.8)
 }
 dev.off()

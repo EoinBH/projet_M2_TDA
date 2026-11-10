@@ -1,5 +1,7 @@
 "model","mean_error","sd_daily_error","acf_lag1","acf_lag7","lb_p_lag14"
-"ARIMA_per_hour",-53,2011,0.362,-0.092,0
+"arima_v1",-53,2011,0.362,-0.092,0
+"arima_v2",-41,1935,0.34,-0.082,0
 "cal_lags",366,1711,0.321,0.18,0
+"cal_lags_tempJ",405,1607,0.275,0.151,0
 "cal_lags_no13",65,1947,0.499,0.18,0
 "FULL_PERFECT_WX",243,969,0.384,0.23,0

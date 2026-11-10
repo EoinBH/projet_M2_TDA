@@ -81,7 +81,7 @@ dir.create(
 RUN_DATA   <- FALSE   # steps 01-04: data cleaning and merging
 RUN_EDA        <- TRUE   # step 05: exploratory analysis (training period only, figures)
 RUN_BENCHMARKS <- TRUE   # step 06: simple benchmarks
-RUN_ARIMA      <- TRUE   # step 07: per-hour ARIMA (slow, ~45 min)
+RUN_ARIMA      <- TRUE   # step 07: per-hour ARIMA versions v1, v2 (slow, ~45 min each; versions with existing results are skipped, see FORCE_RERUN in 07)
 RUN_ABLATION   <- TRUE   # step 08: ablation study + perfect-weather benchmark
 RUN_ANALYSIS   <- TRUE   # step 09: errors by segment/hour, failure days (needs outputs of 06-08)
 RUN_DIAGNOSTICS <- TRUE  # step 10: stationarity, ACF/PACF, residual and forecast-error checks (needs 07 and 08)

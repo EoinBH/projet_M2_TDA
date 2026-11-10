@@ -6,6 +6,8 @@
 #   cal   : weekday, public holiday, holiday eve, school zones A/B/C, annual Fourier terms
 #   lags  : consumption lags available at 14:00 on day J
 #   wx    : OBSERVED weather of J+1 (temperature) -> "perfect weather", NOT deployable
+#   wx_op : OPERATIONAL temperature available at 14:00 on day J (raw 3-hourly SYNOP up to
+#           09:00 UTC on day J, day J-1 mean; see op_temp_features() in protocol.R) -> deployable
 #
 # Full model = cal + lags + wx. Removing one group at a time shows its contribution.
 # Does not need outputs of 06/07 (it only compares with them if they exist).
@@ -79,6 +81,7 @@ for (k in seq_len(K_ANNUAL)) {
   CAL[[paste0("c", k)]] <- cos(2 * pi * k * tt / 365.25)
 }
 CAL$wd <- factor(wday(dates, week_start = 1), levels = 1:7)
+OPT <- op_temp_features(dates, cfg)     # operational temperature, one row per target date
 
 # ---- Features, one table per hour h (rows = target days D = dates[29..N]) ----
 Dp <- 29:N
@@ -95,7 +98,7 @@ build_h <- function(h) {
     hdd_day   = pmax(T_HEAT - rowMeans(TT[Dp, ]), 0),
     y         = M[Dp, ci]
   )
-  cbind(f, CAL[Dp, setdiff(names(CAL), "date"), drop = FALSE])
+  cbind(f, OPT[Dp, , drop = FALSE], CAL[Dp, setdiff(names(CAL), "date"), drop = FALSE])
 }
 F <- lapply(0:23, build_h)
 
@@ -104,13 +107,15 @@ grp <- list(
                    names(CAL)),
   lags = c("lag_w", "lag_d", "lag_mean2", "lag_last"),
   lags_no13 = c("lag_w", "lag_d", "lag_mean2"),
-  wx   = c("temp", "hdd", "cdd", "hdd_day")
+  wx   = c("temp", "hdd", "cdd", "hdd_day"),
+  wx_op = c("op_t_last", "op_t_morn", "op_t_prev", "op_hdd_morn", "op_hdd_prev")
 )
 models <- list(
   cal_only            = "cal",
   lags_only           = "lags",
   cal_lags_no13       = c("cal", "lags_no13"),
   cal_lags            = c("cal", "lags"),          # simple OPERATIONAL linear model
+  cal_lags_tempJ      = c("cal", "lags", "wx_op"), # + operational temperature known at 14:00
   FULL_PERFECT_WX     = c("cal", "lags", "wx"),    # upper bound, not deployable
   noCal_PERFECT_WX    = c("lags", "wx"),
   noLags_PERFECT_WX   = c("cal", "wx")
@@ -153,6 +158,14 @@ if (file.exists(ref_file)) {
 res[, 2:6] <- round(res[, 2:6], 1)
 print(res)
 write.csv(res, paste0("outputs/ablation_scores_", EVAL_SPLIT, ".csv"), row.names = FALSE)
+
+# Model log (versions of the linear family)
+log_model("linear_v1", "linear OLS per hour", "calendar + consumption lags (incl. 13:00 on day J)",
+          "recent level and calendar, both known at 14:00, explain most of the variance",
+          EVAL_SPLIT, sc["cal_lags", "MAE"], sc["cal_lags", "RMSE"])
+log_model("linear_v2", "linear OLS per hour", "linear_v1 + operational temperature known at 14:00",
+          "the largest remaining error is weather-driven (winter, cold days) and temperature of day J carries part of it",
+          EVAL_SPLIT, sc["cal_lags_tempJ", "MAE"], sc["cal_lags_tempJ", "RMSE"])
 
 # Ablation table: remove one group from the full (perfect-weather) model
 mae <- setNames(res$MAE, res$model)
