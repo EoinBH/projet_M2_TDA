@@ -2,14 +2,14 @@
 
 Forecast of the hourly electricity consumption of metropolitan France for all 24 hours of day **J+1**, issued at **14:00 on day J**. Course project (Temporal Data Analysis, M2).
 
-**Status (8 Nov 2026):** data preparation, benchmarks, per-hour ARIMA, linear ablation models, error analysis and time-series diagnostics are done on the validation year (2024), after a school-holiday calendar fix. Still to do: choice of a more elaborate model, the single final evaluation on the test year 2025, the failure-day write-up, robustness discussion, report and slides.
+**Status (10 Nov 2026):** all analyses are done on validation (2024) and on the single test run (2025). What remains is the written report and slides (partner), completing `pour-Tom/usage-ia.md`, and repository clean-up. Partner-facing summaries (French) are in `pour-Tom/`.
 
 ## 1. Forecast protocol
 
 - **Origin / horizon:** 14:00 local time on day J; the 24 hours of J+1.
-- **Information at 14:00 on J:** consumption of all days before J plus hours 0-13 of day J (hours 14-23 of J are not yet observed). Calendar variables are known in advance. Observed weather of J+1 is **never** used in the operational scenario.
-- **Chronological split (by target date):** train 2022-2023, validation 2024, test 2025. The test period must be used only once, for the final evaluation.
-- **Metrics:** MAE, RMSE, error on daily total, error on peak value, error on peak hour.
+- **Information at 14:00 on J:** consumption of all days before J plus hours 0-13 of day J (hours 14-23 of J are not yet observed). Calendar variables are known in advance. Operational temperature: raw 3-hourly SYNOP observations up to 09:00 UTC on day J and the mean of day J-1. Observed weather of J+1 is **never** used in an operational model.
+- **Chronological split (by target date):** train 2022-2023, validation 2024, test 2025. The test period was used once, for the final evaluation.
+- **Metrics:** MAE, RMSE, error on daily total, error on peak value, error on peak hour. Error = forecast - observed, in MW.
 
 ## 2. Data
 
@@ -27,150 +27,148 @@ Raw files go in `data/raw/` and are never modified; the exact file names expecte
 data/raw/            raw inputs (unchanged)
 data/processed/      cleaned datasets, modelling_dataset.csv, diagnostics/
 R/                   all scripts (see below)
-outputs/             benchmark and model results, figures/
-pour-Tom/            status files for the project partner (French)
+outputs/             results (CSV, RDS) and figures/
+pour-Tom/            French summaries for the project partner (status, results, failure days, robustness, AI usage)
 ```
 
 | Script | Role |
 |---|---|
-| `00_run_pipeline.R` | master script: installs packages, runs everything (stages switched by `RUN_*` flags) |
-| `01_prepare_RTE.R` | import and hourly aggregation of RTE data |
-| `02_prepare_weather.R` | import, filtering, aggregation and interpolation of SYNOP data |
-| `03_prepare_calendar.R` | holidays, school holidays, calendar features |
-| `04_merge_datasets.R` | UTC merge, local timestamps, diagnostics -> `modelling_dataset.csv` |
-| `05_eda.R` | exploratory analysis on the **training period only**: daily and weekly cycles, annual seasonality, relation with temperature, calendar effects, 2022 level shift, atypical days (figures `outputs/figures/eda_*.png`, tables `outputs/eda_*.csv`) |
-| `protocol.R` | not run directly: configuration, hourly matrix (days x 24 hours), availability rule, splits, metrics; sourced by scripts 05-10 |
-| `06_benchmarks.R` | three simple benchmarks respecting the 14:00 constraint |
-| `07_arima.R` | one seasonal ARIMA per hour of the day for each version in `ARIMA_SPECS` (`protocol.R`): v1 calendar only, v2 adds the operational temperature; prints progress and time left; versions with existing results are skipped unless `FORCE_RERUN <- TRUE` |
-| `08_ablation.R` | fast per-hour linear models: simple operational model, operational model with temperature at 14:00 (`cal_lags_tempJ`), ablation of calendar / lags / weather, perfect-weather bound |
-| `09_error_analysis.R` | errors by season / day type / temperature / hour, largest-error days with context and plots (reads outputs of 06-08, no refitting) |
-| `10_diagnostics.R` | ADF/KPSS tests and ACF/PACF of the daily series (train), ARIMA residual diagnostics (Ljung-Box, normality, variance by season), autocorrelation of out-of-sample forecast errors; needs the outputs of 07 and 08 |
+| `00_run_pipeline.R` | master script: packages, **single switch `EVAL_SPLIT`** (`"val"` or `"test"`), `SPECS_TO_RUN` (ARIMA versions), one `RUN_*` flag per stage (01-10) |
+| `01_prepare_RTE.R` ... `04_merge_datasets.R` | data preparation -> `data/processed/modelling_dataset.csv` |
+| `05_eda.R` | exploratory analysis, **training period only** |
+| `protocol.R` | not run directly: configuration, hourly matrix (days x 24), availability rule, splits, metrics, `ARIMA_SPECS`, operational temperature features; sourced by 05-10 and `load_results.R` |
+| `06_benchmarks.R` | benchmarks B1-B3 (covers all target dates, validation and test) |
+| `07_arima.R` | one seasonal ARIMA per hour for each version in `SPECS_TO_RUN`; re-uses the orders in `outputs/<version>_orders.csv` when present (chosen on training only) |
+| `08_ablation.R` | per-hour linear models: `cal_lags`, `cal_lags_tempJ`, ablation (calendar / lags / weather), perfect-weather bound |
+| `09_error_analysis.R` | errors by season / day type / temperature / hour, largest-error days |
+| `10_diagnostics.R` | ADF/KPSS, ACF/PACF, ARIMA residual diagnostics, autocorrelation of forecast errors |
+| `load_results.R` | helper, sourced by 11 and 12: loads saved forecasts (no refitting) |
+| `11_tests_and_bias.R` | paired Diebold-Mariano tests + block bootstrap, bias and MAE by month, ranking stability |
+| `12_report_figures.R` | report figures: model comparison, ablation, segments, typical weeks, chosen failure days, protocol timeline |
 
 ## 4. How to run
 
-1. Open R with the **project root as working directory**.
-2. Run:
+1. Open R with the **project root as working directory**. Packages are installed automatically by `00_run_pipeline.R` if missing.
+2. **Validation run** (`EVAL_SPLIT <- "val"`, the default): `source("R/00_run_pipeline.R")`, with the `RUN_*` flags set to the stages wanted. Scripts 11 and 12 are **not** wired into `00_run_pipeline.R`; run them by hand:
    ```r
-   source("R/00_run_pipeline.R")
+   EVAL_SPLIT <- "val"; source("R/11_tests_and_bias.R")
+   EVAL_SPLIT <- "val"; source("R/12_report_figures.R")
    ```
-   Packages are installed automatically if missing (tidyverse, lubridate, readxl, janitor, jsonlite, stringi, zoo, clock, forecast, tseries).
-3. Stages can be switched on/off with the flags `RUN_DATA` (01-04), `RUN_EDA` (05), `RUN_BENCHMARKS` (06), `RUN_ARIMA` (07), `RUN_ABLATION` (08), `RUN_ANALYSIS` (09), `RUN_DIAGNOSTICS` (10) in `00_run_pipeline.R` (for example set all but `RUN_ANALYSIS` to `FALSE` to re-run only script 09 on existing outputs).
+3. **Test run (once, after the protocol is frozen)**, in a fresh R session at the project root:
+   ```r
+   EVAL_SPLIT <- "test"; SPECS_TO_RUN <- "arima_v2"; source("R/07_arima.R")
+   source("R/08_ablation.R")       # reads the scores written by 07, so 07 comes first
+   source("R/09_error_analysis.R")
+   source("R/10_diagnostics.R")    # optional: only part C depends on the split
+   source("R/11_tests_and_bias.R")
+   FAIL_DATES <- NULL; source("R/12_report_figures.R")   # NULL = plot the 3 worst test days
+   ```
+   `06_benchmarks.R` need not be re-run (`benchmarks.rds` already covers 2025). `EVAL_SPLIT` lives in the R session: check the "Evaluation split:" message at the start of each script, and set it again after restarting R (default is `"val"`).
 
-**Run time:** data preparation is quick; `07_arima.R` is the expensive step (about 45 minutes on the author's machine for the validation year, together with `06`).
+**Expensive steps:** `07_arima.R` (one ARIMA per hour, refitted every 28 days): about 45 minutes per ARIMA version on the validation year on the author's machine; on the test year only `arima_v2` was run with its orders re-used, which is faster. Everything else runs in seconds to a few minutes; scripts 11 and 12 run in seconds because they only read saved forecasts.
 
 ## 5. Models
 
-- **Benchmarks (06):** B1 previous day (day J for hours 0-13, day J-1 for hours 14-23, because the rest of day J is unknown at 14:00); B2 same weekday last week; B3 mean of the same weekday over the last 4 weeks.
-- **ARIMA (07):** for each hour h, a regression with seasonal ARIMA errors on the daily series of hour h (weekly period 7). Regressors: public holiday, holiday eve, school-holiday zones A/B/C, 2 annual Fourier pairs. Orders chosen on the training period only; coefficients re-estimated every 28 days on an expanding window; between re-estimations the model is only updated with new observations. Hours 0-13 are 1-step-ahead forecasts, hours 14-23 are 2-step-ahead forecasts.
-- **Linear models (08):** one OLS regression per hour of the target day, re-fitted every 28 days (same protocol). Groups of regressors: calendar (weekday, holidays, school holidays, annual Fourier terms), lags (`lag_last` = consumption at 13:00 on day J, `lag_d`, `lag_w`, `lag_mean2`) and weather (observed J+1 temperature, perfect-weather scenarios only, labelled non-deployable). `cal_lags` (calendar + lags) is the simple operational model; `cal_lags_no13` is the same without `lag_last`; `cal_lags_tempJ` adds the operational temperature.
-- **Model versions and log:** each version is kept, never overwritten: `arima_v1` (calendar only) and `arima_v2` (+ operational temperature) are defined in `ARIMA_SPECS` in `protocol.R`, and `linear_v1` (`cal_lags`) and `linear_v2` (`cal_lags_tempJ`) in script 08. `outputs/model_log.csv` records for each version the limit it addresses and its validation score, so the iteration path is visible. Add a new version by adding an entry to `ARIMA_SPECS` (or a model to the list in 08), not by copying a script.
-- **Operational temperature:** national mean of the raw 3-hourly SYNOP observations (`data/processed/weather_3hourly.csv`), using only what is available at 14:00 on day J: observations up to 09:00 UTC on day J (last value and morning mean) and the mean of day J-1, plus heating degrees below 15 C. The 12:00 UTC observation is not used (not reliably available at 14:00 local time in summer), and hourly interpolated values are not used (they would use later observations).
+- **Benchmarks (06):** B1 previous day, strict (day J for hours 0-13, day J-1 for hours 14-23, because the rest of day J is unknown at 14:00); B2 same weekday last week; B3 mean of the same weekday over the last 4 weeks.
+- **ARIMA (07):** for each hour h, a regression with seasonal ARIMA errors on the daily series of hour h (weekly period 7). Regressors: public holiday, holiday eve, school-holiday zones A/B/C, 2 annual Fourier pairs; `arima_v2` adds the operational temperature. Orders chosen on the training period only; coefficients re-estimated every 28 days on an expanding window. Hours 0-13 are 1-step-ahead forecasts, hours 14-23 are 2-step-ahead.
+- **Linear models (08):** one OLS regression per hour of the target day, refitted every 28 days. Groups: calendar (weekday, holidays, school holidays, annual Fourier terms), lags (`lag_last` = consumption at 13:00 on day J, `lag_d`, `lag_w`, `lag_mean2`), weather. `cal_lags` (= linear_v1) is the simple operational model; `cal_lags_tempJ` (= linear_v2) adds the operational temperature; `cal_lags_no13` drops `lag_last`; perfect-weather models (observed J+1 temperature) are **non-deployable bounds**.
+- **Versions and log:** old versions are kept, never overwritten (`arima_v1`, `arima_v2` in `ARIMA_SPECS`; `linear_v1`, `linear_v2` in 08). `outputs/model_log.csv` records the hypothesis and validation score of each version.
+- **Operational temperature:** national mean of the raw 3-hourly SYNOP observations (`data/processed/weather_3hourly.csv`); only what is available at 14:00 on day J (observations up to 09:00 UTC on J, mean of J-1), plus heating degrees below 15 C. The 12:00 UTC observation and hourly interpolated values are not used.
 
-## 6. Outputs
+## 6. Results
 
-| File | Content |
-|---|---|
-| `outputs/benchmarks_validation.csv`, `outputs/scores_val.csv` | benchmark scores; ARIMA vs benchmarks on the same dates |
-| `outputs/arima_<version>_orders.csv` | selected ARIMA order per hour, per version (`arima_v1`, `arima_v2`) |
-| `outputs/model_log.csv` | iteration log: one row per model version (description, hypothesis, validation MAE/RMSE, run date) |
-| `outputs/benchmarks.rds`, `outputs/arima_<version>_val.rds`, `outputs/ablation_val.rds` | forecasts and observations (R binary format; read with `readRDS()`) |
-| `outputs/errors_by_segment_val.csv`, `mae_by_hour_val.csv`, `failure_days_val.csv` | error analysis (script 09) |
-| `outputs/stationarity_tests_train.csv`, `residual_diagnostics_train_<version>.csv`, `forecast_error_diagnostics_val.csv` | time-series diagnostics (script 10) |
-| `outputs/figures/` | plots from scripts 09 and 10 (`acf_pacf_train.png`, `residuals_train.png`, `forecast_errors_val.png`, ...) |
-| `outputs/information_availability.md` | information-availability table required by the brief |
+### Scores (MW; test used once)
 
-## 7. Known limitations
+| Model | Deployable | Val MAE | Val RMSE | Test MAE | Test RMSE |
+|---|---|---|---|---|---|
+| B1 previous day (strict) | yes | 3183 | 4362 | 3114 | 4275 |
+| B2 same weekday last week | yes | 3229 | 4846 | 3449 | 5136 |
+| B3 mean of 4 weeks | yes | 3707 | 5354 | 3631 | 5116 |
+| `arima_v1` (calendar only) | yes | 1654 | 2420 | not run | not run |
+| `arima_v2` (+ operational temperature) | yes | 1611 | 2324 | 1617 | 2291 |
+| `cal_lags` | yes | 1348 | 1968 | **1323** | 1875 |
+| `cal_lags_tempJ` | yes | **1337** | **1880** | 1343 | **1828** |
+| Perfect J+1 weather (bound) | **no** | 867 | 1242 | 875 | 1192 |
 
-- Observed weather is not used in the operational models; an operational weather model would need archived forecasts available at 14:00.
-- Missing consumption values (4 hours) are filled by last observation carried forward; the repeated autumn hour is averaged.
-- Variables with high missingness in SYNOP (`tn12`, `tx12`, `sw`, station count) are not used by the models.
-- 2022 is atypical (energy crisis, reduced nuclear availability) and is part of the training data.
-- School holidays: events naming only Corsica are ignored; "Pont de l'Ascension" and teacher pre-return events are flagged as school holidays for the zones listed.
-- Consumption up to 13:00 on day J is treated as available at 14:00 using final RTE values; operationally these would be provisional.
-
-## 8. Project status, results and next steps (as of 8 Nov 2026)
-
-### Status
-Scripts 00-10 are written. Scripts 06-10 have been run on the **validation year (2024) only**, after the calendar fix below. `05_eda.R` (training period only) is written but has not been run yet; check its figures and tables before writing the exploration section of the report. The **test year (2025) has not been used** and must be evaluated only once, at the very end.
-
-### Calendar bug (fixed)
-`03_prepare_calendar.R` silently dropped every school-holiday event labelled with several zones ("Zones A/B/C", "Zones A/C", ...): 60 of 76 events, including all Christmas, Toussaint and summer breaks. It was found by checking the largest-error day (24 Dec 2024) against the official school calendar. After the fix: 121-128 flagged days per zone and year, and Christmas Eve is flagged in every year. The fix changed the scores very little (ARIMA MAE 1643.5 -> 1654.2, `cal_lags` 1345 -> 1348), and the ranking of models is unchanged. It did **not** explain the 24 Dec error (5364 -> 5373 MW), see failure days.
-
-### Results on validation (2024, MW)
-| Model | MAE | RMSE | MAE daily total | MAE peak value | MAE peak hour (h) | Deployable |
-|---|---|---|---|---|---|---|
-| Linear, calendar + lags (`cal_lags`) | 1348.3 | 1967.6 | 28710.9 | 1400.0 | 1.7 | yes (best) |
-| Linear, calendar + lags without 13:00 lag (`cal_lags_no13`) | 1499.3 | 2236.5 | 31422.1 | 1442.3 | 2.1 | yes |
-| ARIMA per hour | 1654.2 | 2419.6 | 32468.0 | 1545.9 | 2.5 | yes |
-| Linear, lags only | 2176.8 | 3067.0 | 47737.4 | 2505.0 | 2.3 | yes |
-| Linear, calendar only | 2852.8 | 3970.7 | 64970.1 | 2927.0 | 1.9 | yes |
-| B1 previous day (strict) | 3183.0 | 4362.1 | 72276.1 | 3278.6 | 2.4 | yes |
-| B2 same weekday last week | 3229.4 | 4845.7 | 74799.7 | 3394.5 | 2.1 | yes |
-| B3 mean of 4 weeks | 3706.5 | 5354.4 | 86534.6 | 3804.8 | 1.9 | yes |
-| Linear, calendar + lags + observed J+1 temperature | 866.9 | 1242.3 | 16114.9 | 921.9 | 1.3 | **no** (perfect-weather bound) |
-
-Ablation on the perfect-weather model (MAE increase when a group is removed): weather +481, lags +711, calendar +856 (perfect-weather MAE without calendar 1723, without lags 1578). Groups overlap, so these are not additive.
+Full scores: `outputs/scores_all_val.csv`, `scores_all_test.csv`.
 
 ### Main findings
-- **13:00 information:** the linear model beats the ARIMA (1348 vs 1654, gap 306 MW). Removing `lag_last` (consumption at 13:00 on day J) raises its MAE to 1499, so about half of the gap (151 MW) comes from the 13:00 information and half from combining lags and calendar in one regression. The hourly profile of the gap (pre-fix run, to re-check in `mae_by_hour_val.csv`): hours 6-13 equal, ARIMA worse by roughly 400-560 MW in hours 0-5 and 14-23.
-- **Segments (`cal_lags` MAE):** winter 2197 (ARIMA 2767), spring 1308, summer 787, autumn 1107; Saturday 1264, Sunday 1259, weekday 1354, public holiday 2039 (11 days only); cold days (<5 C) 2276 (23 days), mild 1378, hot (>20 C) 772. `cal_lags` is the best deployable model in every segment; in autumn the ARIMA is close (1148 vs 1107).
-- **Weather:** perfect weather cuts winter error by about 48% (2197 -> 1134) but summer error by only 17% (787 -> 656), and does not help on public holidays (2054 vs 2039 MW): the error there is calendar-related.
-- **Stationarity (script 10, training period):** the raw daily series of every hour is non-stationary (KPSS p = 0.01; ADF only rejects a unit root for hours 10-17). After removing calendar and annual effects (OLS) and a lag-7 difference, all hours are stationary (ADF p = 0.01, KPSS p = 0.1; `tseries` truncates p-values to 0.01-0.1). `ndiffs` gives 1 for all hours; `nsdiffs` (weekly) gives 1 for hours 6-22 and 0 for hours 0-5 and 23. The automatically selected orders agree (D = 1 for hours 6-21, d = 1 for the night hours), except hour 22.
-- **ARIMA residuals (training period):** Ljung-Box (lag 14) rejects white noise for 23 of 24 hours (only hour 3 passes); the remaining autocorrelation is small but significant (max |ACF| 0.11-0.30 vs band 0.073). Residuals are not normal (Shapiro p < 0.0001 for all hours) and their standard deviation is 2.2-3.4 times larger in winter than in summer (heteroscedasticity; e.g. hour 8: 3460 vs 1173 MW). The per-hour ARIMA is therefore misspecified, which fits the missing temperature effect; prediction intervals from it would be unreliable.
-- **Validation forecast errors (daily mean error):** lag-1 autocorrelation 0.36 (ARIMA), 0.32 (`cal_lags`), 0.50 (`cal_lags_no13`) and 0.38 even with perfect weather; lag-7 autocorrelation -0.09 (ARIMA), 0.18-0.23 (linear models); Ljung-Box p < 0.0001 for all (read the ARIMA with care: its 2-step errors are autocorrelated by construction). Mean error is small (-53 to +366 MW vs a daily standard deviation of 1700-2000 MW). Day-to-day persistence of the errors is a lead for the more elaborate model.
-- **Heuristic from script 09:** 9 of the 10 largest-error days are flagged as weather-driven (error follows the temperature change from the previous day). The operational model has no J+1 weather, so this is an information limit.
+- **Linear vs ARIMA vs benchmarks:** same order on both periods: linear models > `arima_v2` > benchmarks. Both linear models cut MAE by about 57-58% relative to the best benchmark (B1). `arima_v2` is significantly worse than `cal_lags` (+263 MW val, +294 MW test on MAE, p < 0.001).
+- **`cal_lags` vs `cal_lags_tempJ`:** statistically equivalent. Val: MAE -11 MW (p = 0.72), squared error significantly lower (p = 0.029). Test: MAE +20 MW (p = 0.46), squared error -173,000 (p = 0.12), not significant. The frozen recommendation (see below) was `cal_lags_tempJ`; the test did not confirm its advantage, and `cal_lags` is simpler with an equal or lower MAE.
+- **Ablation** (perfect-weather model, MAE increase when a group is removed, val / test): calendar +856 / +821, lags +711 / +669, weather +481 / +448; same order on both periods. Removing the 13:00 lag costs +151 / +154 MW. The operational temperature recovers little of the perfect-weather potential.
+- **Segments:** operational temperature helps in winter and on cold days and hurts in summer and on hot days (val and test); winter error is about 1.9-2.8 times the summer error for the operational models; perfect weather does not help on public holidays (calendar-driven error).
+- **Bias:** linear models over-forecast on average in validation (+366 / +405 MW), positive in 9 of 12 months in both years; ARIMA is close to unbiased.
+- **Time-series diagnostics (training period):** raw hourly series are non-stationary (KPSS); after calendar/annual effects and a lag-7 difference all hours are stationary. ARIMA residuals are autocorrelated (Ljung-Box rejects for 23 of 24 hours in v1 and v2), non-normal, and 2.2-3.4 (v1) / 1.8-2.3 (v2) times more variable in winter than in summer: prediction intervals would be unreliable. Daily forecast errors are autocorrelated (lag 1: 0.28-0.50), a lead for future work.
+- **Failure days** (validation, `cal_lags`): 2024-11-24 (+9081 MW, abrupt warm-up), 2024-01-08 (-5026 MW, cold wave and holiday-contaminated lags), 2024-12-24 (+5373 MW, Christmas Eve on a Tuesday, never seen in training). Details and evidence status in `pour-Tom/jours-echec.md`.
+- **Robustness and conditions of use:** `pour-Tom/robustesse.md`. Do not rely on the system during cold snaps and abrupt temperature changes, after holiday breaks, and on rare calendar days; on hot days use `cal_lags` rather than `cal_lags_tempJ`.
 
-### Failure days (validation 2024, `cal_lags`; bias = forecast minus observed)
-| Date | Mean error (MW) | With perfect weather | What happened | Class | Status |
-|---|---|---|---|---|---|
-| 2024-11-24 (Sun) | +9081 | 1937 | About 15 degrees of warm-up in 72 h (21 -> 24 Nov), after the 21-22 Nov cold spell with snow (storm Caetano), then record mild air (storm Bert, 24-25 Nov); lags from the cold Saturday | regime break / information limit | weather events verified |
-| 2024-01-08 (Mon) | -5026 | 2305 | Onset of the January cold wave (negative temperatures from 8 Jan, consumption peak 83.5 GW on 10 Jan) and first working Monday after the Christmas break; the 1 Jan holiday contaminates B2 (error 20750) and probably `lag_w` | regime break + model limit | cold wave and calendar verified |
-| 2024-12-24 (Tue) | +5373 | 4786 (no help) | Holiday eve inside the Christmas school break; B1 (previous day) does best (2493). In the training years 24 Dec fell on a Saturday (2022) and a Sunday (2023), so a Tuesday Christmas Eve was never seen and the additive calendar model cannot represent it. Not caused by the calendar bug (error unchanged after the fix) | model limit / rare calendar event | reasoning checked by calendar arithmetic, effect itself not tested |
-| 2024-11-21 (Thu) | -5849 | 2721 | Cold snap and snow (storm Caetano, 21-22 Nov) | regime break | weather event verified |
-| 2024-01-19 (Fri) | -7363 | 2495 | Cold day (1.4 C, 4.9 C colder than the day before) | weather-driven | specific event not verified |
-| 2024-05-02 (Thu) | -6797 | 1811 | Bridge day after the Wednesday 1 May holiday; day J is a holiday so its lags are low; cool day (11.3 C) | calendar + weather | not verified |
+## 7. Outputs
 
-Suggested three for the report (one per class, facts verified): 2024-11-24, 2024-01-08, 2024-12-24.
+### Tables and results (`outputs/`)
+| File(s) | Content | Script |
+|---|---|---|
+| `scores_all_{val,test}.csv` | all models, 5 metrics (main results table) | 12 |
+| `scores_{val,test}.csv`, `benchmarks_validation.csv` | ARIMA vs benchmarks on the same dates; benchmark scores | 06, 07 |
+| `ablation_scores_*.csv`, `ablation_groups_*.csv`, `ablation_summary_*.csv` | linear models and ablation (MAE increase per removed group, summary used for the ablation figure) | 08, 12 |
+| `paired_tests_{val,test}.csv` | Diebold-Mariano tests with bootstrap CI | 11 |
+| `rank_by_metric_*.csv`, `rank_by_quarter_*.csv`, `hours_best_*.csv` | ranking stability by metric, quarter, hour | 11 |
+| `bias_by_month_*.csv`, `mae_by_month_*.csv` | monthly bias and MAE per model | 11 |
+| `errors_by_segment_*.csv`, `mae_by_hour_*.csv`, `failure_days_*.csv` | error analysis: season, day type, temperature, hour, largest-error days | 09 |
+| `forecast_error_diagnostics_*.csv` | mean error, daily error sd, autocorrelation of forecast errors | 10 |
+| `stationarity_tests_train.csv`, `residual_diagnostics_train*.csv` | stationarity tests; ARIMA residual diagnostics per version | 10 |
+| `eda_summary.csv`, `eda_atypical_days.csv` | exploratory analysis (training) | 05 |
+| `arima_v1_orders.csv`, `arima_v2_orders.csv` | ARIMA order per hour, chosen on training | 07 |
+| `model_log.csv` | one row per model version: description, hypothesis, validation score | 07, 08 |
+| `information_availability.md` | information-availability table required by the brief | by hand |
+| `*.rds` (`benchmarks`, `arima_v1_val`, `arima_v2_{val,test}`, `ablation_{val,test}`) | saved forecasts and observations; read with `readRDS()` | 06-08 |
 
-### Open points and checks
-- Validation list items still open: repeated autumn hour, 4 missing consumption hours, 62 missing temperature hours, why solar radiation `sw` is entirely missing.
-- SYNOP temperature `t` is in Kelvin (confirmed in the documentation; scripts 08 and 09 convert to deg C automatically).
-- `tn12`, `tx12` and `n_stations` missingness is structural (three-hourly SYNOP), not an acquisition error.
-- Resolved: identical Saturday/Sunday MAE (coincidence: 14 July 2024, a Sunday public holiday, is excluded from the Sunday segment); school-holiday flags (see calendar bug); information-availability table.
+### Figures (`outputs/figures/`; suggested report section in brackets)
+| File | Content |
+|---|---|
+| `protocol_timeline.png` | chronological split and information available at the 14:00 origin [Protocol] |
+| `eda_daily_profile`, `eda_weekly_cycle`, `eda_annual_level`, `eda_temperature`, `eda_calendar_effects` `.png` | daily and weekly cycle, annual level and 2022 shift, consumption vs temperature, calendar effects, training period [Exploration] |
+| `model_comparison_{val,test}.png` | MAE and RMSE of all models, perfect-weather bound separated [Results] |
+| `ablation_{val,test}.png` | MAE increase when removing a variable group; operational models [Results] |
+| `typical_weeks_{val,test}.png` | observed vs predicted, one ordinary winter and one summer week [Results] |
+| `segments_{val,test}.png` | MAE by season, day type, temperature regime [Error analysis] |
+| `mae_by_hour_{val,test}.png` | MAE by hour of the target day [Error analysis] |
+| `failure_days_{val,test}.png` | the 3 largest-error days of `cal_lags` (script 09) [Error analysis] |
+| `failure_days_chosen_{val,test}.png` | val: the 3 chosen failure days; test: the 3 worst test days (script 12) [Failure days] |
+| `mae_by_month_{val,test}.png`, `bias_by_month_{val,test}.png` | monthly MAE and bias per model [Robustness] |
+| `acf_pacf_train.png`, `residuals_train*.png`, `forecast_errors_{val,test}.png` | ACF/PACF of the training series, ARIMA residuals per version, forecast-error autocorrelation [Time-series diagnostics] |
 
-### Remaining work (from the course brief)
-1. Choose the "more elaborate model" for the benchmark / simple / elaborate comparison. Leads from the diagnostics: a regression with AR/ARMA errors or an error correction using the morning (hours 0-13) of day J, because daily errors are autocorrelated even with perfect weather; a machine-learning model on the same lag features; variance stabilisation (winter errors are 2-3 times larger). Keep everything deployable at 14:00. Implemented but not yet run: the operational temperature available at 14:00 as new model versions `arima_v2` and `cal_lags_tempJ` (see section 5); the previous versions are kept. Run 08, 07 (only v2 is computed, about 45 min), 09, 10, then add the results and the model log here.
-2. Final single evaluation on the test year 2025 (set `EVAL_SPLIT <- "test"` in 07, 08, 09 and 10; 07 takes ~45 min; do not tune anything on it). By season, working / non-working days and public holidays.
-3. Write up the three failure days (table above).
-4. Robustness discussion (stability of model ranking across periods, metrics and hours) and situations where the system should not be used (cold snaps, rare calendar events, regime breaks).
-5. Report (< 10 pages), 10-minute slides, and three documented examples of AI-assistant use (one kept after verification, one modified or rejected, one error detected). Candidate examples are in `pour-Tom/statut_projet.txt`.
-6. Optional: a daily ARIMA as a faster alternative; a more realistic operational-weather scenario would need archived forecasts.
+Figures were produced by the scripts; check each visually before inserting it in the report.
 
-### Notes for an AI assistant continuing this work
-- The group is on a free plan with limited tokens: deliver work in increments, do not run slow code (script 07 takes ~45 min) and do not read raw data; read only the R scripts and the `outputs/` CSV files when needed. Long conversations use the allowance faster, so start a new chat when the context gets long.
-- Run scripts from the project root; `R/00_run_pipeline.R` has one `RUN_*` flag per stage (data, EDA, benchmarks, ARIMA, ablation, analysis, diagnostics). `R/protocol.R` is sourced by scripts 05-10 and is not run on its own.
-- Column names: time `datetime_utc`, target `consommation`, temperature `t`, calendar `is_public_holiday`, `is_holiday_eve`, `school_holiday_A/B/C`.
-- Never use observed J+1 weather in an operational model; it is only a labelled perfect-weather benchmark.
-- French status file for the project partner (who writes the report): `pour-Tom/statut_projet.txt` (updated 8 Nov 2026 evening).
-
-## Frozen protocol before test (10 Nov 2026, decided on validation 2024 only)
+## 8. Frozen protocol before test (10 Nov 2026, decided on validation 2024 only)
 
 **Lineup evaluated once on the test year (2025):**
-- Benchmarks: `B1_prev_day_strict`, `B2_same_weekday_lw`, `B3_mean_4_weeks`.
-- Simple model: `cal_lags` (= linear_v1).
-- Simple model + operational temperature: `cal_lags_tempJ` (= linear_v2).
-- Time-series model: `arima_v2` (per-hour ARIMA with operational temperature). `arima_v1` is not re-run on test (not significantly different from v2 on MAE on validation; kept in the validation results as the "before" version).
+- Benchmarks `B1_prev_day_strict`, `B2_same_weekday_lw`, `B3_mean_4_weeks`; simple model `cal_lags`; simple model + operational temperature `cal_lags_tempJ`; time-series model `arima_v2`. `arima_v1` is not re-run on test (not significantly different from v2 on MAE on validation).
 - Not deployable, for the ablation only: `FULL_PERFECT_WX`, `noCal_PERFECT_WX`, `noLags_PERFECT_WX`, plus `cal_only`, `lags_only`, `cal_lags_no13`.
 
-**Selection rule (fixed before looking at test):** the recommended model is the deployable model with the lowest validation MAE and RMSE, provided it beats the simpler model with a paired Diebold-Mariano test (daily losses, Newey-West lag 7, p < 0.05) on MAE or on squared error; otherwise the simpler model is recommended. Test results are reported for all models but never used to change the recommendation, the models or the hyperparameters.
+**Selection rule (fixed before looking at test):** the recommended model is the deployable model with the lowest validation MAE and RMSE, provided it beats the simpler model with a paired Diebold-Mariano test (daily losses, Newey-West lag 7, p < 0.05) on MAE or on squared error; otherwise the simpler model is recommended. Test results are reported for all models but not used to change the recommendation, the models or the hyperparameters.
 
-**Validation evidence (366 days, `outputs/paired_tests_val.csv`):**
-- `cal_lags_tempJ` is best on all 5 metrics, in 3 of 4 quarters and for 15 of 24 hours. Versus `cal_lags`: MAE -11 MW (95% CI -63 to +53, p = 0.72, not significant); squared error significantly lower (p = 0.029).
-- `arima_v2` is significantly worse than `cal_lags` (MAE +263 MW, p < 0.001) and than `cal_lags_tempJ`; versus `arima_v1`, MAE -43 MW (p = 0.11), squared error significantly lower (p < 0.001).
-- `cal_lags` beats benchmarks B1 and B2 with p < 0.001 (MAE about -1800 MW); the other models' MAE is also far below every benchmark (`outputs/scores_val.csv`), but only these two paired tests were run.
-- **Recommended model for the test: `cal_lags_tempJ`**, because it passes the rule on squared error (large errors matter most for grid operation). Its gain on MAE is not established, so the report must say it is small; `cal_lags` is the parsimonious alternative.
+**Validation evidence (366 days):** `cal_lags_tempJ` best on all 5 metrics, in 3 of 4 quarters and for 15 of 24 hours; vs `cal_lags` the squared error is significantly lower (p = 0.029) but the MAE gain is not (p = 0.72). `arima_v2` is significantly worse than both linear models. **Recommended model: `cal_lags_tempJ`** (passes the rule on squared error). **Outcome on test:** not confirmed (see section 6); both linear models are reported, `cal_lags` being the parsimonious alternative.
 
-**Known limitations, documented and deliberately not fixed before test:**
-- Linear models over-forecast on average in 2024 (mean error +366 MW for `cal_lags`, +405 MW for `cal_lags_tempJ`; ARIMA about 0), concentrated in Feb (+1324), Dec (+825) and Oct (+722) for `cal_lags` (`outputs/bias_by_month_val.csv`).
-- `cal_lags_tempJ` is worse than `cal_lags` in summer and on hot days (MAE 996 vs 772 on hot days).
-- No further model version is built before the test.
+**Known limitations, documented and not fixed before test:** linear models over-forecast on average in 2024 (+366 / +405 MW), concentrated in February, December and October; `cal_lags_tempJ` is worse than `cal_lags` in summer and on hot days; no weather forecast for J+1 is available, so the operational temperature is only a proxy.
+
+## 9. Known limitations
+
+- Observed weather is not used in the operational models; a real operational weather model would need archived forecasts available at 14:00. The perfect-weather bound (MAE about 870 MW) shows the potential.
+- Consumption up to 13:00 on day J is treated as available at 14:00 using final RTE values; operationally these would be provisional. Sensitivity: about 150 MW of MAE (`cal_lags_no13`).
+- Missing consumption values (4 hours) are filled by last observation carried forward; the repeated autumn hour is averaged.
+- Variables with high missingness in SYNOP (`tn12`, `tx12`, `sw`, station count) are not used. SYNOP temperature `t` is in Kelvin (scripts convert to deg C automatically).
+- 2022 is atypical (energy crisis, reduced nuclear availability) and is part of the training data.
+- School holidays: events naming only Corsica are ignored; "Pont de l'Ascension" and teacher pre-return events are flagged as school holidays for the zones listed. A calendar bug (events labelled "Zones A/B/C" silently dropped, 60 of 76 events) was found on 8 Nov and fixed; all results were recomputed after the fix.
+- One validation year and one test year: differences below about 50 MW between the two linear models are not statistically established; segments with fewer than 30 days (public holidays, cold days) are fragile.
+- Open checks: repeated autumn hour, 4 missing consumption hours, 62 missing temperature hours, why solar radiation `sw` is entirely missing.
+
+## 10. Remaining deliverables (non-code)
+
+- Report (< 10 pages) and 10-minute slides, written by the partner from `pour-Tom/`.
+- Complete the `[À COMPLÉTER]` items in `pour-Tom/usage-ia.md`.
+- Repository clean-up before submission (ignore `.RData`, `.Rhistory`, `.DS_Store`, large `.rds`; remove `TODO_PROMPTS.md` if not wanted), then tag the final commit.
+
+## Conventions
+- Column names: time `datetime_utc`, target `consommation`, temperature `t`, calendar `is_public_holiday`, `is_holiday_eve`, `school_holiday_A/B/C`.
+- Run scripts from the project root. Never use observed J+1 weather in an operational model; it is only a labelled perfect-weather benchmark.
+- French files for the partner: `pour-Tom/statut_projet.txt` (status, file map), `resultats.md`, `jours-echec.md`, `robustesse.md`, `usage-ia.md`, `data-prep-summary.txt`.

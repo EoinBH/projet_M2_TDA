@@ -1,168 +1,145 @@
-PROJET DONNÉES TEMPORELLES - POINT D'AVANCEMENT
+PROJET DONNÉES TEMPORELLES - ÉTAT FINAL DES ANALYSES
 Prévision de la consommation électrique horaire en France métropolitaine
-(état au 8 novembre 2026, soir)
+(état au 10 novembre 2026, après l'évaluation unique sur le test 2025)
 
-1. OBJECTIF
+1. OBJECTIF ET PROTOCOLE
 À 14 h le jour J, prévoir la consommation des 24 heures du jour J+1. Aucune
-information postérieure à 14 h le jour J ne doit être utilisée (pas de fuite
-d'information). La météo observée de J+1 n'est utilisable que dans un
-scénario "météo parfaite", présenté comme une borne de performance et jamais
-comme un modèle déployable.
+information postérieure à 14 h le jour J n'est utilisée. La météo observée de
+J+1 n'apparaît que dans un scénario "météo parfaite", présenté comme borne de
+performance et jamais comme un modèle déployable. Découpage chronologique :
+apprentissage 2022-2023, validation 2024, test 2025 (utilisé une seule fois).
+Protocole et règle de choix du modèle figés avant le test : voir README.md,
+section "Frozen protocol before test".
 
 2. CE QUI EST FAIT
-- Préparation des données (scripts R/01 à R/04) : RTE éCO2mix 2022-2025,
-  météo SYNOP (agrégation nationale) et variables calendaires. Fichier
-  final : data/processed/modelling_dataset.csv (35 064 heures). Tout est
-  fusionné en UTC, avec heure locale conservée pour les changements d'heure.
-- CORRECTION IMPORTANTE (8 novembre) : le script R/03 ignorait en silence
-  tous les événements de vacances scolaires nommés "Zones A/B/C" ou
-  "Zones A/C" (60 événements sur 76, dont toutes les vacances de Noël, de
-  la Toussaint et d'été). C'est corrigé. Tous les résultats ci-dessous ont
-  été recalculés après la correction ; l'effet sur les scores est faible
-  (MAE ARIMA 1643 -> 1654, MAE linéaire 1345 -> 1348) et le classement des
-  modèles ne change pas.
-- Protocole (R/protocol.R, chargé par les autres scripts) : matrice jours x 24 heures, règle de
-  disponibilité à 14 h (jours précédents + heures 0 à 13 du jour J),
-  découpage chronologique : apprentissage 2022-2023, validation 2024,
-  test 2025 (à n'utiliser qu'une seule fois). Métriques : MAE, RMSE, erreur
-  sur le total journalier, sur la valeur et sur l'heure de la pointe.
-- Références simples (R/06_benchmarks.R) : B1 jour précédent "strict"
-  (jour J pour les heures 0-13, jour J-1 pour les heures 14-23),
-  B2 même jour de la semaine précédente, B3 moyenne des 4 mêmes jours.
-- ARIMA (R/07_arima.R) : un ARIMA saisonnier (période 7) par heure, avec
-  régresseurs calendaires. Ordres choisis sur l'apprentissage, ré-estimation
-  tous les 28 jours.
-- Modèles linéaires et ablation (R/08_ablation.R) : une régression par heure
-  avec groupes de variables calendrier / retards / météo. "cal_lags"
-  (calendrier + retards, dont la consommation à 13 h le jour J) est le
-  modèle simple déployable. Le scénario météo parfaite est la borne
-  non déployable.
-- Analyse des erreurs (R/09_error_analysis.R) : par saison, type de jour,
-  température, heure ; journées à plus forte erreur (outputs/*.csv, figures).
-- Diagnostics de séries temporelles (R/10_diagnostics.R) : tests de
-  stationnarité, ACF/PACF, résidus de l'ARIMA, autocorrélation des erreurs.
-- Tableau de disponibilité de l'information : outputs/information_availability.md
-- Analyse exploratoire (R/05_eda.R, période d'apprentissage uniquement) :
-  écrite, pas encore exécutée ; figures dans outputs/figures/eda_*.png.
-- Script maître R/00_run_pipeline.R : lance tous les scripts (un
-  interrupteur RUN_* par étape).
+Toutes les analyses sont terminées, sur la validation et sur le test :
+données, exploration, références simples, ARIMA par heure (v1 et v2), modèles
+linéaires, ablation, analyse des erreurs, diagnostics de séries temporelles,
+tests appariés, robustesse. Reste à faire (hors code) : rapport, diapositives,
+compléter pour-Tom/usage-ia.md (points [À COMPLÉTER]), nettoyage du dépôt.
 
-3. RÉSULTATS SUR LA VALIDATION (2024, en MW)
-Modèle                         MAE     RMSE    Déployable
-Linéaire calendrier + retards  1348    1968    oui (meilleur)
-Linéaire sans le retard 13 h   1499    2237    oui
-ARIMA par heure                1654    2420    oui
-Linéaire retards seuls         2177    3067    oui
-Linéaire calendrier seul       2853    3971    oui
-B1 jour précédent strict       3183    4362    oui
-B2 semaine précédente          3229    4846    oui
-B3 moyenne 4 semaines          3707    5354    oui
-Linéaire + météo parfaite       867    1242    NON (borne de performance)
+3. RÉSULTATS (MW ; erreur = prévision - observé)
+Modèle                         Utilisable  MAE val  RMSE val  MAE test  RMSE test
+B1 jour précédent strict       oui         3183     4362      3114      4275
+B2 semaine précédente          oui         3229     4846      3449      5136
+B3 moyenne de 4 semaines       oui         3707     5354      3631      5116
+ARIMA v1 (calendrier seul)     oui         1654     2420      non lancé non lancé
+ARIMA v2 (+ température)       oui         1611     2324      1617      2291
+Linéaire cal_lags              oui         1348     1968      1323      1875
+Linéaire cal_lags_tempJ        oui         1337     1880      1343      1828
+Météo J+1 parfaite (borne)     NON         867      1242      875       1192
 
-Ablation (hausse de MAE quand on retire un groupe, modèle météo parfaite) :
-météo +481, retards +711, calendrier +856 (les groupes se recouvrent).
-
-4. PRINCIPAUX CONSTATS
-- Le modèle linéaire bat l'ARIMA (1348 contre 1654). En retirant le retard
-  "consommation à 13 h le jour J", il passe à 1499 : environ la moitié de
-  l'écart vient de cette information de 13 h, l'autre moitié de la
-  combinaison des retards et du calendrier dans une même régression.
-- Par saison (modèle linéaire) : hiver 2197, printemps 1308, été 787,
-  automne 1107. Jours froids (< 5 °C, 23 jours) : 2276 ; jours chauds
-  (> 20 °C) : 772. Jours fériés : 2039 (11 jours seulement). Le modèle
-  linéaire est le meilleur dans tous les segments.
-- La météo parfaite réduit l'erreur d'hiver d'environ 48 % mais celle
-  d'été de 17 % seulement, et n'aide pas les jours fériés : l'erreur y est
-  d'origine calendaire.
-- Stationnarité (apprentissage) : les séries brutes ne sont pas
-  stationnaires (KPSS rejette pour toutes les heures). Après retrait des
-  effets calendaires/annuels (MCO) et une différenciation de période 7,
-  toutes les heures sont stationnaires (ADF rejette la racine unitaire,
-  KPSS ne rejette pas la stationnarité). Les ordres choisis automatiquement
-  sont cohérents : d = 1 la nuit, D = 1 (hebdomadaire) en journée.
-- Résidus de l'ARIMA (apprentissage) : Ljung-Box rejette le bruit blanc pour
-  23 heures sur 24 (autocorrélation faible mais significative, jusqu'à 0,30
-  contre un seuil de 0,07) ; résidus non normaux ; écart-type 2 à 3,4 fois
-  plus grand en hiver qu'en été (hétéroscédasticité). L'ARIMA par heure est
-  donc mal spécifié (pas de température), ses intervalles de prédiction ne
+Constats principaux :
+- Ordre identique sur validation et test : modèles linéaires > ARIMA v2 >
+  références simples. Les modèles linéaires réduisent la MAE de 57 à 58 %
+  par rapport à la meilleure référence (B1).
+- L'ARIMA v2 est significativement moins bon que cal_lags (+263 MW en
+  validation, +294 MW en test, p < 0,001).
+- cal_lags et cal_lags_tempJ sont statistiquement équivalents. Validation :
+  écart de MAE -11 MW (p = 0,72), erreur quadratique significativement plus
+  faible pour tempJ (p = 0,029). Test : écart de MAE +20 MW (p = 0,46),
+  erreur quadratique non significative (p = 0,12). Le modèle recommandé par
+  la règle figée était cal_lags_tempJ ; le test ne confirme pas son avantage
+  et cal_lags, plus simple, a une MAE égale ou plus faible. À présenter
+  honnêtement dans le rapport.
+- Ablation (modèle météo parfaite, hausse de MAE quand on retire un groupe,
+  validation / test) : calendrier +856 / +821, retards +711 / +669, météo
+  +481 / +448. Le retard de 13 h le jour J vaut environ 150 MW de MAE.
+- La température disponible à 14 h aide en hiver et par temps froid, et
+  dégrade l'été et les jours chauds (validation et test).
+- Les modèles linéaires sur-prévoient en moyenne en validation (+366 et +405
+  MW), l'ARIMA est presque sans biais.
+- Diagnostics (apprentissage) : séries brutes non stationnaires ; résidus de
+  l'ARIMA autocorrélés (Ljung-Box rejette pour 23 heures sur 24) et 2 à 3
+  fois plus variables en hiver : les intervalles de prédiction de l'ARIMA ne
   seraient pas fiables.
-- Erreurs hors échantillon (validation) : les erreurs journalières moyennes
-  sont autocorrélées (retard 1 : 0,32 à 0,50, même avec la météo parfaite :
-  0,38). Piste pour le modèle plus élaboré : régression à erreurs AR/ARMA ou
-  correction par l'erreur observée le matin du jour J.
 
-5. JOURNÉES À FORTE ERREUR (validation 2024, modèle linéaire)
-Proposition de trois journées pour le rapport (une par type de cause) :
-- 2024-11-24 (dimanche), sur-prévision de 9081 MW : redoux d'environ 15 degrés
-  en 72 h (21 -> 24 nov.) après le froid et la neige du 21-22 nov. (tempête
-  Caetano), puis douceur record (tempête Bert, 24-25 nov.). Avec la météo
-  parfaite l'erreur tombe à 1937. Type : rupture de régime / limite
-  d'information (pas de météo de J+1). Faits météo vérifiés (Météo-France).
-- 2024-01-08 (lundi), sous-prévision de 5026 MW : début de la vague de froid
-  de janvier (températures négatives dès le 8, pointe de 83,5 GW le 10) et
-  premier lundi ouvré après les vacances de Noël ; le 1er janvier (férié)
-  contamine B2 (erreur 20 750) et probablement le retard hebdomadaire.
-  Type : rupture de régime + limite du modèle. Faits vérifiés.
-- 2024-12-24 (mardi), sur-prévision de 5373 MW : veille de Noël pendant les
-  vacances scolaires ; la météo parfaite n'aide pas (4786) et B1 est le
-  meilleur (2493). Le 24 décembre tombait un samedi (2022) et un dimanche
-  (2023) dans l'apprentissage : un 24 décembre en semaine n'a jamais été
-  vu, et le modèle calendaire additif ne peut pas le représenter. Type :
-  limite du modèle / événement calendaire rare. Raisonnement vérifié par le
-  calendrier, effet lui-même non testé. ATTENTION : cette erreur n'est PAS
-  due au bug du calendrier (5364 avant correction, 5373 après).
-Autres journées : 2024-11-21 (froid et neige, vérifié), 2024-01-19 (jour
-froid, événement précis non vérifié), 2024-05-02 (lendemain du 1er mai,
-pont ; non vérifié).
+4. FICHIERS RÉDIGÉS POUR LE RAPPORT (dossier pour-Tom/)
+- resultats.md : résultats validation et test, ablation, tests appariés.
+- jours-echec.md : trois journées d'échec (24/11/2024, 08/01/2024,
+  24/12/2024) avec classe, preuves et statut (données / externe / hypothèse).
+- robustesse.md : stabilité du classement et situations déconseillées.
+- usage-ia.md : trois exemples d'usage de l'IA et journal (à compléter).
+- data-prep-summary.txt : résumé de la préparation des données.
 
-6. PROBLÈMES / POINTS D'ATTENTION
-- L'exécution de 07 dure environ 45 minutes (ARIMA par heure) ; l'évaluation
-  finale sur le test 2025 prendra un temps du même ordre.
-- Les fichiers .rds dans outputs/ ne se lisent pas dans un éditeur : il faut
-  utiliser readRDS() dans R.
-- Variables météo très incomplètes (tn12, tx12, sw, nombre de stations) :
-  non utilisées. 2022 est une année atypique (crise énergétique).
-- Hypothèse à documenter : la consommation jusqu'à 13 h le jour J est
-  supposée disponible à 14 h avec les valeurs consolidées RTE ; en
-  exploitation ce seraient des valeurs provisoires (sensibilité : environ
-  150 MW de MAE, voir le retard 13 h ci-dessus).
-- Validations encore à faire : heure répétée d'octobre, les 4 valeurs de
-  consommation manquantes, les 62 températures manquantes.
+5. FIGURES (outputs/figures/) ET SECTION DU RAPPORT (proposition de plan)
+protocol_timeline.png ............ découpage chronologique et information
+                                   disponible à 14 h [Protocole]
+eda_daily_profile, eda_weekly_cycle, eda_annual_level, eda_temperature,
+eda_calendar_effects (.png) ..... profil journalier, cycle hebdomadaire,
+                                   niveau annuel et rupture de 2022,
+                                   consommation vs température, effets
+                                   calendaires, apprentissage [Exploration]
+model_comparison_val / _test .... MAE et RMSE de tous les modèles, borne
+                                   météo parfaite séparée [Résultats]
+ablation_val / _test ............ hausse de MAE quand on retire un groupe de
+                                   variables [Résultats]
+typical_weeks_val / _test ....... observé et prévu, une semaine d'hiver et
+                                   une d'été [Résultats]
+segments_val / _test ............ MAE par saison, type de jour, température
+                                   [Analyse des erreurs]
+mae_by_hour_val / _test ......... MAE par heure du jour cible [Analyse des
+                                   erreurs]
+failure_days_val / _test ........ les 3 plus fortes erreurs de cal_lags
+                                   (script 09) [Analyse des erreurs]
+failure_days_chosen_val / _test . validation : les 3 journées retenues ;
+                                   test : les 3 pires journées du test
+                                   [Journées d'échec]
+mae_by_month_*, bias_by_month_* . MAE et biais par mois et par modèle
+                                   [Robustesse]
+acf_pacf_train, residuals_train,
+residuals_train_arima_v1 / _v2,
+forecast_errors_val / _test ..... ACF/PACF de la série d'apprentissage,
+                                   résidus de l'ARIMA, autocorrélation des
+                                   erreurs de prévision [Diagnostics]
+Vérifier chaque figure visuellement avant de l'insérer.
 
-7. RESTE À FAIRE
-1. Choisir et ajuster le modèle plus élaboré (comparaison benchmark / simple
-   / élaboré), déployable à 14 h (pistes au point 4). Décidé : ajouter la
-   température observée disponible à 14 h (SYNOP 3-horaire brut, sans
-   interpolation) au modèle linéaire et à l'ARIMA, comme nouvelles versions
-   (arima_v2 et cal_lags_tempJ : implémentées, pas encore exécutées ; les
-   versions v1 sont conservées ; journal des versions : outputs/model_log.csv).
-2. Évaluation finale unique sur le test 2025 (EVAL_SPLIT <- "test" dans 07,
-   08, 09 et 10), par saison, jours ouvrés / non ouvrés, jours fériés.
-   Ne rien régler sur le test.
-3. Rédiger l'analyse des trois journées (point 5).
-4. Robustesse et conditions d'utilisation déconseillées (vagues de froid,
-   événements calendaires rares, ruptures de régime).
-5. Rapport (< 10 pages), diapositives (10 min max), code reproductible,
-   3 exemples d'usage des agents IA (point 8).
+6. TABLEAUX ET FICHIERS CSV (outputs/)
+Principal : scores_all_val.csv, scores_all_test.csv (tous les modèles).
+Tests et robustesse : paired_tests_*.csv, rank_by_metric_*.csv,
+rank_by_quarter_*.csv, hours_best_*.csv, bias_by_month_*.csv,
+mae_by_month_*.csv.
+Analyse des erreurs : errors_by_segment_*.csv, mae_by_hour_*.csv,
+failure_days_*.csv, forecast_error_diagnostics_*.csv.
+Ablation : ablation_scores_*.csv, ablation_groups_*.csv,
+ablation_summary_*.csv.
+Apprentissage : eda_summary.csv, eda_atypical_days.csv,
+stationarity_tests_train.csv, residual_diagnostics_train*.csv.
+Modèles : arima_v1_orders.csv, arima_v2_orders.csv, model_log.csv (une ligne
+par version de modèle, avec l'hypothèse testée).
+Disponibilité de l'information : information_availability.md (tableau exigé
+par la consigne). Les fichiers .rds contiennent les prévisions ; ils se lisent
+avec readRDS() dans R. (* = val et test)
 
-8. USAGE DES AGENTS IA (3 exemples à documenter dans le rapport)
-- Proposition conservée après vérification : la règle de disponibilité à
-  14 h et le découpage chronologique ; ou l'hypothèse "le retard de 13 h
-  explique l'avance du modèle linéaire", testée par le modèle sans ce retard
-  (confirmée pour environ la moitié de l'écart).
-- Proposition modifiée : le benchmark "jour précédent" naïf utilisait des
-  heures du jour J pas encore connues à 14 h ; il a été corrigé en version
-  "stricte" (B1).
-- Erreurs détectées : (a) l'assistant avait deviné des noms de colonnes
-  (timestamp_utc, consumption) et un nom de fichier avec une mauvaise casse ;
-  corrigés après lecture des scripts réels. (b) Bug du calendrier : en
-  confrontant le 24 décembre 2024 au calendrier scolaire officiel, on a
-  trouvé que les vacances de Noël n'étaient pas marquées ; cause : les
-  libellés "Zones A/B/C" n'étaient pas reconnus. (c) L'assistant avait
-  d'abord attribué à tort l'erreur du 24 décembre à ce bug ; la réexécution
-  a montré que l'erreur restait inchangée, et l'explication a été corrigée.
-Méthode de vérification à préciser avec le groupe pour chacun.
+7. POUR REPRODUIRE (détail : README.md, sections 4 et 7)
+Ouvrir R à la racine du projet.
+- Validation : source("R/00_run_pipeline.R") (EVAL_SPLIT <- "val" par
+  défaut, un interrupteur RUN_* par étape), puis à la main :
+  source("R/11_tests_and_bias.R") et source("R/12_report_figures.R").
+- Test (une seule fois), session R neuve :
+  EVAL_SPLIT <- "test"; SPECS_TO_RUN <- "arima_v2"; source("R/07_arima.R")
+  puis source() de 08, 09, 10 (facultatif), 11, et
+  FAIL_DATES <- NULL; source("R/12_report_figures.R").
+  Le 07 passe avant le 08. Le 06 n'est pas à relancer.
+- EVAL_SPLIT est une variable de la session R : après un redémarrage de R,
+  la redéfinir (défaut : "val"). Vérifier le message "Evaluation split".
+Étape coûteuse : 07_arima.R (un ARIMA par heure), environ 45 minutes par
+version d'ARIMA sur la validation ; sur le test, seule la v2 a été lancée,
+avec les ordres déjà choisis. Tout le reste prend de quelques secondes à
+quelques minutes.
 
-9. POUR REPRODUIRE
-Ouvrir R à la racine du projet puis : source("R/00_run_pipeline.R")
-(un interrupteur RUN_* par étape ; voir README.md pour le détail).
+8. POINTS D'ATTENTION POUR LE RAPPORT
+- Hypothèse : la consommation jusqu'à 13 h le jour J est supposée disponible
+  à 14 h avec les valeurs consolidées RTE ; en exploitation ce seraient des
+  valeurs provisoires (sensibilité : environ 150 MW de MAE).
+- Pas de prévision météo de J+1 dans les données : la température
+  opérationnelle (jour J et veille) n'est qu'un substitut ; la borne météo
+  parfaite (MAE environ 870 MW) montre le gain potentiel.
+- Un seul an de validation et un seul de test : les écarts de moins de 50 MW
+  entre cal_lags et cal_lags_tempJ ne sont pas établis ; les segments de moins
+  de 30 jours (jours fériés, jours froids) sont fragiles.
+- Bug du calendrier scolaire trouvé le 8 novembre (60 événements sur 76
+  ignorés) et corrigé ; tous les résultats ont été recalculés.
+- Vérifications encore ouvertes : heure répétée d'octobre, 4 valeurs de
+  consommation manquantes, 62 températures manquantes, rayonnement solaire
+  "sw" entièrement manquant.
