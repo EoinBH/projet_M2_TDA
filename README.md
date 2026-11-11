@@ -2,7 +2,7 @@
 
 Forecast of the hourly electricity consumption of metropolitan France for all 24 hours of day **J+1**, issued at **14:00 on day J**. Course project (Temporal Data Analysis, M2).
 
-**Status (10 Nov 2026):** all analyses are done on validation (2024) and on the single test run (2025). What remains is the written report and slides (partner), completing `pour-Tom/usage-ia.md`, and repository clean-up. Partner-facing summaries (French) are in `pour-Tom/`.
+**Status:** final. All analyses are done on validation (2024) and on the single test run (2025). The written report is included as `Rapport_projet_TSA.pdf` and `Rapport_projet_TSA.docx`.
 
 ## 1. Forecast protocol
 
@@ -28,7 +28,7 @@ data/raw/            raw inputs (unchanged)
 data/processed/      cleaned datasets, modelling_dataset.csv, diagnostics/
 R/                   all scripts (see below)
 outputs/             results (CSV, RDS) and figures/
-pour-Tom/            French summaries for the project partner (status, results, failure days, robustness, AI usage)
+Rapport_projet_TSA.pdf / .docx   final report
 ```
 
 | Script | Role |
@@ -96,8 +96,8 @@ Full scores: `outputs/scores_all_val.csv`, `scores_all_test.csv`.
 - **Segments:** operational temperature helps in winter and on cold days and hurts in summer and on hot days (val and test); winter error is about 1.9-2.8 times the summer error for the operational models; perfect weather does not help on public holidays (calendar-driven error).
 - **Bias:** linear models over-forecast on average in validation (+366 / +405 MW), positive in 9 of 12 months in both years; ARIMA is close to unbiased.
 - **Time-series diagnostics (training period):** raw hourly series are non-stationary (KPSS); after calendar/annual effects and a lag-7 difference all hours are stationary. ARIMA residuals are autocorrelated (Ljung-Box rejects for 23 of 24 hours in v1 and v2), non-normal, and 2.2-3.4 (v1) / 1.8-2.3 (v2) times more variable in winter than in summer: prediction intervals would be unreliable. Daily forecast errors are autocorrelated (lag 1: 0.28-0.50), a lead for future work.
-- **Failure days** (validation, `cal_lags`): 2024-11-24 (+9081 MW, abrupt warm-up), 2024-01-08 (-5026 MW, cold wave and holiday-contaminated lags), 2024-12-24 (+5373 MW, Christmas Eve on a Tuesday, never seen in training). Details and evidence status in `pour-Tom/jours-echec.md`.
-- **Robustness and conditions of use:** `pour-Tom/robustesse.md`. Do not rely on the system during cold snaps and abrupt temperature changes, after holiday breaks, and on rare calendar days; on hot days use `cal_lags` rather than `cal_lags_tempJ`.
+- **Failure days** (validation, `cal_lags`): 2024-11-24 (+9081 MW, abrupt warm-up), 2024-01-08 (-5026 MW, cold wave and holiday-contaminated lags), 2024-12-24 (+5373 MW, Christmas Eve on a Tuesday, never seen in training). Details in the report (failure-day section) and `outputs/failure_days_val.csv`.
+- **Robustness and conditions of use** (see the report): do not rely on the system during cold snaps and abrupt temperature changes, after holiday breaks, and on rare calendar days; on hot days use `cal_lags` rather than `cal_lags_tempJ`.
 
 ## 7. Outputs
 
@@ -159,13 +159,10 @@ Figures were produced by the scripts; check each visually before inserting it in
 - One validation year and one test year: differences below about 50 MW between the two linear models are not statistically established; segments with fewer than 30 days (public holidays, cold days) are fragile.
 - Open checks: repeated autumn hour, 4 missing consumption hours, 62 missing temperature hours, why solar radiation `sw` is entirely missing.
 
-## 10. Remaining deliverables (non-code)
+## 10. Git tags
 
-- Report (< 10 pages) and 10-minute slides, written by the partner from `pour-Tom/`.
-- Complete the `[À COMPLÉTER]` items in `pour-Tom/usage-ia.md`.
-- Commit the final state and tag it. Existing tags: `v1-baseline`, `pre-test` (protocol frozen), `apres-test` (test run done).
+`v1-baseline`, `pre-test` (protocol frozen before the test run), `apres-test` (test run done).
 
 ## Conventions
 - Column names: time `datetime_utc`, target `consommation`, temperature `t`, calendar `is_public_holiday`, `is_holiday_eve`, `school_holiday_A/B/C`.
 - Run scripts from the project root. Never use observed J+1 weather in an operational model; it is only a labelled perfect-weather benchmark.
-- French files for the partner: `pour-Tom/statut_projet.txt` (status, file map), `resultats.md`, `jours-echec.md`, `robustesse.md`, `usage-ia.md`, `data-prep-summary.txt`.
